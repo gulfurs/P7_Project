@@ -22,6 +22,11 @@ public class NPCProfile
     [Range(1.0f, 1.5f)]
     public float repeatPenalty = 1.1f;
     
+    [Header("TTS Settings")]
+    public string voiceName = "af_bella"; // KoKoro voice
+    public bool enableTTS = true;
+    public AudioSource audioSource;
+    
     // Optional reference to the NPC's visual representation
     public GameObject npcGameObject;
     

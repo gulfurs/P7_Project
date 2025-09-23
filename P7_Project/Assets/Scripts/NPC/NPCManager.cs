@@ -71,7 +71,7 @@ public class NPCManager : MonoBehaviour
         List<string> names = new List<string>();
         foreach (var npc in npcInstances)
         {
-            if (npc != null && !string.IsNullOrEmpty(npc.npcProfile.npcName))
+            if (npc != null && npc.npcProfile != null && !string.IsNullOrEmpty(npc.npcProfile.npcName))
             {
                 names.Add(npc.npcProfile.npcName);
             }

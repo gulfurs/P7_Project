@@ -1,5 +1,8 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Net.Http;
+using System.Text;
 using System.Threading;
 using UnityEngine;
 using TMPro;
@@ -13,7 +16,6 @@ public class NPCChatInstance : MonoBehaviour
     public OllamaChatClient ollamaClient;
     
     [Header("Chat Settings")]
-    public int maxHistory = 6;
     public bool broadcastResponses = true;
     
     [Header("UI")]
@@ -22,9 +24,12 @@ public class NPCChatInstance : MonoBehaviour
     public TMP_Text npcNameLabel;
     public TMP_Text externalMessagesText;
     
-    private readonly List<OllamaChatClient.ChatMessage> history = new List<OllamaChatClient.ChatMessage>();
     private readonly List<string> externalMessages = new List<string>();
     private CancellationTokenSource cts;
+    
+    // TTS
+    private const string TTS_ENDPOINT = "http://localhost:8880/v1/audio/speech";
+    private static readonly HttpClient httpClient = new HttpClient();
 
     void Start()
     {
@@ -43,6 +48,20 @@ public class NPCChatInstance : MonoBehaviour
         if (npcNameLabel != null && npcProfile != null)
         {
             npcNameLabel.text = npcProfile.npcName;
+        }
+        
+        // Setup AudioSource for TTS
+        if (npcProfile != null && npcProfile.enableTTS)
+        {
+            if (npcProfile.audioSource == null)
+            {
+                npcProfile.audioSource = GetComponent<AudioSource>();
+                if (npcProfile.audioSource == null)
+                {
+                    npcProfile.audioSource = gameObject.AddComponent<AudioSource>();
+                    npcProfile.audioSource.playOnAwake = false;
+                }
+            }
         }
         
         // Register with manager
@@ -73,25 +92,21 @@ public class NPCChatInstance : MonoBehaviour
         cts?.Cancel();
         cts = new CancellationTokenSource();
 
-        // Update conversation history
-        history.Add(new OllamaChatClient.ChatMessage { role = "user", content = userText });
-        TrimHistory();
-
         // Build system prompt including external messages
-        string systemPrompt = npcProfile.GetFullSystemPrompt();
+        string fullSystemPrompt = npcProfile.GetFullSystemPrompt();
         if (externalMessages.Count > 0)
         {
-            systemPrompt += "\n\nRecent messages from other characters:\n" + string.Join("\n", externalMessages);
+            fullSystemPrompt += "\n\nRecent messages from other characters:\n" + string.Join("\n", externalMessages);
         }
 
-        // Build message list for request
+        // Create single conversation - no history, just current user message
         var messages = new List<OllamaChatClient.ChatMessage>
         {
-            new OllamaChatClient.ChatMessage { role = "system", content = systemPrompt }
+            new OllamaChatClient.ChatMessage { role = "system", content = fullSystemPrompt },
+            new OllamaChatClient.ChatMessage { role = "user", content = userText }
         };
-        messages.AddRange(history);
 
-        // Clear output and start streaming
+        // Clear output
         if (outputText) outputText.text = "";
 
         try
@@ -113,19 +128,21 @@ public class NPCChatInstance : MonoBehaviour
                 return;
             }
 
-            // Save assistant reply to history
-            history.Add(new OllamaChatClient.ChatMessage { role = "assistant", content = response.content });
-            TrimHistory();
-            
             // Broadcast response to other NPCs
             if (broadcastResponses && NPCManager.Instance != null)
             {
                 NPCManager.Instance.BroadcastMessage(this, response.content);
             }
+            
+            // Speak the response with TTS
+            if (npcProfile.enableTTS && !string.IsNullOrEmpty(response.content))
+            {
+                StartCoroutine(SpeakText(response.content));
+            }
         }
         catch (OperationCanceledException)
         {
-            // Request was cancelled - this is normal
+            if (outputText) outputText.text = "Cancelled";
         }
         catch (Exception ex)
         {
@@ -153,36 +170,70 @@ public class NPCChatInstance : MonoBehaviour
             externalMessagesText.text = "Messages from others:\n" + string.Join("\n", externalMessages);
         }
     }
-
-    public void CancelStream()
+    
+    private IEnumerator SpeakText(string text)
     {
-        cts?.Cancel();
-    }
-
-    private void TrimHistory()
-    {
-        int pairsToKeep = Mathf.Max(0, maxHistory);
-        var filtered = new List<OllamaChatClient.ChatMessage>();
+        if (string.IsNullOrEmpty(text) || npcProfile?.audioSource == null) yield break;
         
-        // Remove system messages from history (we rebuild them each time)
-        foreach (var m in history) 
-            if (m.role != "system") 
-                filtered.Add(m);
-
-        // Keep only the last N conversation pairs
-        int messagesToKeep = pairsToKeep * 2; // user + assistant pairs
-        if (filtered.Count > messagesToKeep)
+        // Create TTS request with proper JSON format
+        string json = $@"{{
+            ""input"": ""{text.Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r")}"",
+            ""voice"": ""{npcProfile.voiceName}""
+        }}";
+        
+        Debug.Log($"TTS Request: {json}");
+        
+        var request = new HttpRequestMessage(HttpMethod.Post, TTS_ENDPOINT)
         {
-            int start = filtered.Count - messagesToKeep;
-            history.Clear();
-            for (int i = start; i < filtered.Count; i++) 
-                history.Add(filtered[i]);
-        }
-        else
+            Content = new StringContent(json, Encoding.UTF8, "application/json")
+        };
+        
+        // Send request
+        var responseTask = httpClient.SendAsync(request);
+        while (!responseTask.IsCompleted)
+            yield return new WaitForSeconds(0.01f);
+            
+        var response = responseTask.Result;
+        if (!response.IsSuccessStatusCode)
         {
-            history.Clear();
-            history.AddRange(filtered);
+            Debug.LogError($"TTS failed for {npcProfile.npcName}: {response.StatusCode}");
+            yield break;
         }
+        
+        // Get audio data
+        var audioTask = response.Content.ReadAsByteArrayAsync();
+        while (!audioTask.IsCompleted)
+            yield return new WaitForSeconds(0.01f);
+            
+        var audioData = audioTask.Result;
+        
+        // Save temp file and play
+        string tempFile = System.IO.Path.GetTempFileName() + ".mp3";
+        System.IO.File.WriteAllBytes(tempFile, audioData);
+        
+        using (var www = UnityEngine.Networking.UnityWebRequestMultimedia.GetAudioClip("file://" + tempFile, AudioType.MPEG))
+        {
+            yield return www.SendWebRequest();
+            
+            if (www.result == UnityEngine.Networking.UnityWebRequest.Result.Success)
+            {
+                var clip = UnityEngine.Networking.DownloadHandlerAudioClip.GetContent(www);
+                if (clip != null)
+                {
+                    npcProfile.audioSource.clip = clip;
+                    npcProfile.audioSource.Play();
+                    Debug.Log($"{npcProfile.npcName} speaking: {text}");
+                    
+                    // Wait for audio to finish
+                    while (npcProfile.audioSource.isPlaying)
+                        yield return new WaitForSeconds(0.1f);
+                }
+            }
+        }
+        
+        // Cleanup
+        if (System.IO.File.Exists(tempFile))
+            System.IO.File.Delete(tempFile);
     }
 
     void OnDestroy()

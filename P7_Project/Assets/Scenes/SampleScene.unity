@@ -1090,7 +1090,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &434957207
 RectTransform:
   m_ObjectHideFlags: 0
@@ -1694,7 +1694,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c291981c2a0e1d34789f45a3caf7b4e8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NPCManager
-  npcInstances: []
+  npcInstances:
+  - {fileID: 969207763}
+  - {fileID: 1002537021}
 --- !u!4 &673011204
 Transform:
   m_ObjectHideFlags: 0
@@ -1741,15 +1743,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::OllamaChatClient
   endpoint: http://localhost:11434/api/chat
   model: qwen3:4b-instruct-2507-q4_K_M
-  temperature: 0.7
-  repeatPenalty: 1.1
   topP: 0.9
   maxTokens: 150
-  systemPrompt: You are a hackerman NPC named Halipha. Keep replies under 2 sentences.
-    Stay in character.
-  maxHistory: 6
-  userInput: {fileID: 1133197846}
-  outputText: {fileID: 891749280}
 --- !u!4 &812325952
 Transform:
   m_ObjectHideFlags: 0
@@ -1967,7 +1962,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &891749279
 RectTransform:
   m_ObjectHideFlags: 0
@@ -2116,19 +2111,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NPCChatInstance
   npcProfile:
-    npcName: Cool_O
-    systemPrompt: You are a grumpy but skilled blacksmith. You prefer actions over
-      words but have a good heart deep down
-    contextPrompt: 
-    personalityTraits: direct, practical, secretly caring
+    npcName: epiclonewolf
+    systemPrompt: You are a weary town guard who takes duty seriously but secretly
+      longs for adventure. MAX 2 sentence, no onomatopoeia
+    contextPrompt: "The player approaches you while you\u2019re patrolling the main
+      gate at dusk."
+    personalityTraits: Stern and dutiful, yet quietly envious of those who roam freely.
     temperature: 0.7
     repeatPenalty: 1.1
+    voiceName: af_bella
+    enableTTS: 1
+    audioSource: {fileID: 1641263690}
     npcGameObject: {fileID: 0}
-  endpoint: http://localhost:11434/api/chat
-  model: qwen3:4b-instruct-2507-q4_K_M
-  topP: 0.9
-  maxTokens: 150
-  maxHistory: 6
+  ollamaClient: {fileID: 812325951}
   broadcastResponses: 1
   userInput: {fileID: 2006649159}
   outputText: {fileID: 1197911581}
@@ -2180,19 +2175,20 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NPCChatInstance
   npcProfile:
-    npcName: Lame_O
-    systemPrompt: You are a friendly shopkeeper in a magical village. You love helping
-      customers and talking about your enchanted items.
-    contextPrompt: 
-    personalityTraits: Cheerful, helpful, talkative, enthusiastic about magic
+    npcName: superdude
+    systemPrompt: You are a friendly village merchant who always greets adventurers
+      warmly and offers practical goods. MAX 2 sentence, no onomatopoeia
+    contextPrompt: The player just entered your small wooden shop filled with herbs,
+      tools, and travel supplies.
+    personalityTraits: "Cheerful and helpful, with a touch of curiosity about travelers\u2019
+      journeys."
     temperature: 0.7
     repeatPenalty: 1.1
+    voiceName: af_bella
+    enableTTS: 1
+    audioSource: {fileID: 1641263690}
     npcGameObject: {fileID: 0}
-  endpoint: http://localhost:11434/api/chat
-  model: qwen3:4b-instruct-2507-q4_K_M
-  topP: 0.9
-  maxTokens: 150
-  maxHistory: 6
+  ollamaClient: {fileID: 812325951}
   broadcastResponses: 1
   userInput: {fileID: 16006732}
   outputText: {fileID: 1077084365}
@@ -2504,7 +2500,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &1133197845
 RectTransform:
   m_ObjectHideFlags: 0
@@ -3728,6 +3724,135 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1597545955}
   m_CullTransparentMesh: 1
+--- !u!1 &1641263689
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1641263691}
+  - component: {fileID: 1641263690}
+  m_Layer: 0
+  m_Name: Audio Source
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!82 &1641263690
+AudioSource:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1641263689}
+  m_Enabled: 1
+  serializedVersion: 4
+  OutputAudioMixerGroup: {fileID: 0}
+  m_audioClip: {fileID: 0}
+  m_Resource: {fileID: 0}
+  m_PlayOnAwake: 1
+  m_Volume: 1
+  m_Pitch: 1
+  Loop: 0
+  Mute: 0
+  Spatialize: 0
+  SpatializePostEffects: 0
+  Priority: 128
+  DopplerLevel: 1
+  MinDistance: 1
+  MaxDistance: 500
+  Pan2D: 0
+  rolloffMode: 0
+  BypassEffects: 0
+  BypassListenerEffects: 0
+  BypassReverbZones: 0
+  rolloffCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 1
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  panLevelCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  spreadCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  reverbZoneMixCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+--- !u!4 &1641263691
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1641263689}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 557.9509, y: 279, z: -8.96727}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1925231759
 GameObject:
   m_ObjectHideFlags: 0
@@ -4396,3 +4521,4 @@ SceneRoots:
   - {fileID: 673011204}
   - {fileID: 969207764}
   - {fileID: 1002537022}
+  - {fileID: 1641263691}
