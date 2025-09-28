@@ -40,6 +40,13 @@ public class NPCProfile
             
         if (!string.IsNullOrEmpty(personalityTraits))
             fullPrompt += "\n\nPersonality: " + personalityTraits;
+        
+        // Add conversation guidelines
+        fullPrompt += "\n\nConversation Guidelines:";
+        fullPrompt += "\n- Keep responses conversational and under 40 words";
+        fullPrompt += "\n- Ask questions to other characters to keep the conversation flowing";
+        fullPrompt += "\n- Reference what others have said when appropriate";
+        fullPrompt += "\n- Stay in character and be engaging";
             
         return fullPrompt;
     }

@@ -17,6 +17,9 @@ public class NPCChatInstance : MonoBehaviour
     
     [Header("Chat Settings")]
     public bool broadcastResponses = true;
+    public bool enableAutoResponse = true; // NPCs respond automatically to messages
+    public float responseDelay = 2f; // Delay before responding (seconds)
+    public float responseChance = 0.8f; // Chance to respond to a message (0-1)
     
     [Header("UI")]
     public TMP_InputField userInput;
@@ -26,6 +29,8 @@ public class NPCChatInstance : MonoBehaviour
     
     private readonly List<string> externalMessages = new List<string>();
     private CancellationTokenSource cts;
+    private bool isCurrentlySpeaking = false;
+    private Coroutine autoResponseCoroutine;
     
     // TTS
     private const string TTS_ENDPOINT = "http://localhost:8880/v1/audio/speech";
@@ -85,8 +90,20 @@ public class NPCChatInstance : MonoBehaviour
         var userText = userInput != null ? userInput.text : "";
         if (string.IsNullOrWhiteSpace(userText) || npcProfile == null || ollamaClient == null) return;
 
-        // Clear input
-        if (userInput != null) userInput.text = "";
+        SendMessage(userText);
+    }
+    
+    /// <summary>
+    /// Send a message (can be called by user input or auto-response)
+    /// </summary>
+    public async void SendMessage(string messageText)
+    {
+        if (string.IsNullOrWhiteSpace(messageText) || npcProfile == null || ollamaClient == null || isCurrentlySpeaking) return;
+
+        isCurrentlySpeaking = true;
+        
+        // Clear input if it was from UI
+        if (userInput != null && userInput.text == messageText) userInput.text = "";
 
         // Cancel any ongoing request
         cts?.Cancel();
@@ -103,7 +120,7 @@ public class NPCChatInstance : MonoBehaviour
         var messages = new List<OllamaChatClient.ChatMessage>
         {
             new OllamaChatClient.ChatMessage { role = "system", content = fullSystemPrompt },
-            new OllamaChatClient.ChatMessage { role = "user", content = userText }
+            new OllamaChatClient.ChatMessage { role = "user", content = messageText }
         };
 
         // Clear output
@@ -134,8 +151,11 @@ public class NPCChatInstance : MonoBehaviour
                 NPCManager.Instance.BroadcastMessage(this, response.content);
             }
             
-            // Speak the response with TTS
-            if (npcProfile.enableTTS && !string.IsNullOrEmpty(response.content))
+            // Speak the response with TTS (check global and individual settings)
+            bool shouldUseTTS = npcProfile.enableTTS && 
+                               (NPCManager.Instance == null || NPCManager.Instance.globalTTSEnabled);
+                               
+            if (shouldUseTTS && !string.IsNullOrEmpty(response.content))
             {
                 StartCoroutine(SpeakText(response.content));
             }
@@ -147,6 +167,10 @@ public class NPCChatInstance : MonoBehaviour
         catch (Exception ex)
         {
             if (outputText) outputText.text = "Error: " + ex.Message;
+        }
+        finally
+        {
+            isCurrentlySpeaking = false;
         }
     }
 
@@ -168,6 +192,38 @@ public class NPCChatInstance : MonoBehaviour
         if (externalMessagesText != null)
         {
             externalMessagesText.text = "Messages from others:\n" + string.Join("\n", externalMessages);
+        }
+        
+        // Auto-respond if enabled and not currently speaking
+        if (enableAutoResponse && !isCurrentlySpeaking && UnityEngine.Random.value < responseChance)
+        {
+            // Cancel any pending auto-response
+            if (autoResponseCoroutine != null)
+            {
+                StopCoroutine(autoResponseCoroutine);
+            }
+            
+            // Start delayed auto-response
+            autoResponseCoroutine = StartCoroutine(DelayedAutoResponse(senderName, message));
+        }
+    }
+    
+    /// <summary>
+    /// Auto-respond to a message after a delay
+    /// </summary>
+    private IEnumerator DelayedAutoResponse(string senderName, string message)
+    {
+        // Wait for response delay (with some randomness)
+        float actualDelay = responseDelay + UnityEngine.Random.Range(-0.5f, 1f);
+        yield return new WaitForSeconds(actualDelay);
+        
+        // Make sure we're still able to respond
+        if (!isCurrentlySpeaking && npcProfile != null)
+        {
+            // Create a response prompt that references the sender's message
+            string responsePrompt = $"Respond to what {senderName} just said: \"{message}\"";
+            Debug.Log($"{npcProfile.npcName} auto-responding to {senderName}");
+            SendMessage(responsePrompt);
         }
     }
     
@@ -236,9 +292,27 @@ public class NPCChatInstance : MonoBehaviour
             System.IO.File.Delete(tempFile);
     }
 
+    /// <summary>
+    /// Start a conversation manually (for testing)
+    /// </summary>
+    [ContextMenu("Start Conversation")]
+    public void StartConversation()
+    {
+        if (npcProfile != null)
+        {
+            string starter = $"Hello everyone! I'm {npcProfile.npcName}. What's on your mind today?";
+            SendMessage(starter);
+        }
+    }
+
     void OnDestroy()
     {
         cts?.Cancel();
+        
+        if (autoResponseCoroutine != null)
+        {
+            StopCoroutine(autoResponseCoroutine);
+        }
         
         // Unregister from NPCManager
         if (NPCManager.Instance != null && NPCManager.Instance.npcInstances.Contains(this))

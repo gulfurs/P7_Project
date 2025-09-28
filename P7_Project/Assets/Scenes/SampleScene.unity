@@ -1390,7 +1390,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -331, y: -134}
+  m_AnchoredPosition: {x: -331, y: -355}
   m_SizeDelta: {x: 200, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &557628610
@@ -1697,6 +1697,7 @@ MonoBehaviour:
   npcInstances:
   - {fileID: 969207763}
   - {fileID: 1002537021}
+  globalTTSEnabled: 0
 --- !u!4 &673011204
 Transform:
   m_ObjectHideFlags: 0
@@ -2120,11 +2121,14 @@ MonoBehaviour:
     temperature: 0.7
     repeatPenalty: 1.1
     voiceName: af_bella
-    enableTTS: 1
+    enableTTS: 0
     audioSource: {fileID: 1641263690}
     npcGameObject: {fileID: 0}
   ollamaClient: {fileID: 812325951}
   broadcastResponses: 1
+  enableAutoResponse: 1
+  responseDelay: 2
+  responseChance: 0.8
   userInput: {fileID: 2006649159}
   outputText: {fileID: 1197911581}
   npcNameLabel: {fileID: 409174237}
@@ -2185,11 +2189,14 @@ MonoBehaviour:
     temperature: 0.7
     repeatPenalty: 1.1
     voiceName: af_bella
-    enableTTS: 1
+    enableTTS: 0
     audioSource: {fileID: 1641263690}
     npcGameObject: {fileID: 0}
   ollamaClient: {fileID: 812325951}
   broadcastResponses: 1
+  enableAutoResponse: 1
+  responseDelay: 2
+  responseChance: 0.8
   userInput: {fileID: 16006732}
   outputText: {fileID: 1077084365}
   npcNameLabel: {fileID: 661143557}
@@ -4250,7 +4257,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 302, y: 0}
+  m_AnchoredPosition: {x: 302, y: -371}
   m_SizeDelta: {x: 200, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &2112774813

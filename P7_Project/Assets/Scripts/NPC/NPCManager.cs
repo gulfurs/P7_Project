@@ -6,6 +6,9 @@ public class NPCManager : MonoBehaviour
     [Header("NPC Instances")]
     public List<NPCChatInstance> npcInstances = new List<NPCChatInstance>();
     
+    [Header("Global Settings")]
+    public bool globalTTSEnabled = true; // Master TTS switch for debugging
+    
     public static NPCManager Instance { get; private set; }
     
     void Awake()
@@ -77,5 +80,52 @@ public class NPCManager : MonoBehaviour
             }
         }
         return names;
+    }
+    
+    /// <summary>
+    /// Start an autonomous conversation with a topic
+    /// </summary>
+    [ContextMenu("Start Group Conversation")]
+    public void StartGroupConversation()
+    {
+        StartGroupConversation("What interesting topics have you been thinking about lately?");
+    }
+    
+    /// <summary>
+    /// Quick TTS control for debugging
+    /// </summary>
+    [ContextMenu("Toggle Global TTS")]
+    public void ToggleGlobalTTS()
+    {
+        globalTTSEnabled = !globalTTSEnabled;
+        Debug.Log($"Global TTS is now: {(globalTTSEnabled ? "ENABLED" : "DISABLED")}");
+    }
+    
+    [ContextMenu("Disable All TTS")]
+    public void DisableAllTTS()
+    {
+        globalTTSEnabled = false;
+        Debug.Log("🔇 All TTS DISABLED for debugging");
+    }
+    
+    [ContextMenu("Enable All TTS")]
+    public void EnableAllTTS()
+    {
+        globalTTSEnabled = true;
+        Debug.Log("🔊 All TTS ENABLED");
+    }
+    
+    public void StartGroupConversation(string topic)
+    {
+        if (npcInstances.Count > 0)
+        {
+            // Pick a random NPC to start the conversation
+            var starter = npcInstances[UnityEngine.Random.Range(0, npcInstances.Count)];
+            if (starter != null && starter.npcProfile != null)
+            {
+                Debug.Log($"Starting group conversation with topic: {topic}");
+                starter.SendMessage(topic);
+            }
+        }
     }
 }
