@@ -101,6 +101,3 @@ InitTestScene*.unity*
 # Piper TTS voice models (large files)
 *.onnx
 *.onnx.json
-voices/
-test_piper.py
-test_piper.wav
