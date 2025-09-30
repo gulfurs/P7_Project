@@ -97,3 +97,10 @@ InitTestScene*.unity*
 
 # Auto-generated scenes by play mode tests
 /[Aa]ssets/[Ii]nit[Tt]est[Ss]cene*.unity*
+
+# Piper TTS voice models (large files)
+*.onnx
+*.onnx.json
+voices/
+test_piper.py
+test_piper.wav

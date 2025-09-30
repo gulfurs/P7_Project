@@ -7,34 +7,34 @@ using System.Threading;
 using UnityEngine;
 using TMPro;
 
+
 public class NPCChatInstance : MonoBehaviour
 {
     [Header("NPC Configuration")]
     public NPCProfile npcProfile;
-    
+
     [Header("Ollama Client Reference")]
     public OllamaChatClient ollamaClient;
-    
+
     [Header("Chat Settings")]
     public bool broadcastResponses = true;
     public bool enableAutoResponse = true; // NPCs respond automatically to messages
     public float responseDelay = 2f; // Delay before responding (seconds)
     public float responseChance = 0.8f; // Chance to respond to a message (0-1)
-    
+
     [Header("UI")]
     public TMP_InputField userInput;
     public TMP_Text outputText;
     public TMP_Text npcNameLabel;
     public TMP_Text externalMessagesText;
-    
+
     private readonly List<string> externalMessages = new List<string>();
     private CancellationTokenSource cts;
     private bool isCurrentlySpeaking = false;
-    private Coroutine autoResponseCoroutine;
     
-    // TTS
-    private const string TTS_ENDPOINT = "http://localhost:8880/v1/audio/speech";
-    private static readonly HttpClient httpClient = new HttpClient();
+    // TTS Queue System
+    private readonly Queue<string> ttsQueue = new Queue<string>();
+    private bool isProcessingTTS = false;
 
     void Start()
     {
@@ -54,7 +54,7 @@ public class NPCChatInstance : MonoBehaviour
         {
             npcNameLabel.text = npcProfile.npcName;
         }
-        
+
         // Setup AudioSource for TTS
         if (npcProfile != null && npcProfile.enableTTS)
         {
@@ -68,7 +68,7 @@ public class NPCChatInstance : MonoBehaviour
                 }
             }
         }
-        
+
         // Register with manager
         if (NPCManager.Instance != null)
         {
@@ -92,16 +92,16 @@ public class NPCChatInstance : MonoBehaviour
 
         SendMessage(userText);
     }
-    
+
     /// <summary>
-    /// Send a message (can be called by user input or auto-response)
+    /// Send a message with direct token streaming to TTS
     /// </summary>
     public async void SendMessage(string messageText)
     {
         if (string.IsNullOrWhiteSpace(messageText) || npcProfile == null || ollamaClient == null || isCurrentlySpeaking) return;
 
         isCurrentlySpeaking = true;
-        
+
         // Clear input if it was from UI
         if (userInput != null && userInput.text == messageText) userInput.text = "";
 
@@ -126,198 +126,209 @@ public class NPCChatInstance : MonoBehaviour
         // Clear output
         if (outputText) outputText.text = "";
 
-        try
-        {
-            var response = await ollamaClient.SendChatAsync(
-                messages,
-                npcProfile.temperature,
-                npcProfile.repeatPenalty,
-                (streamContent) => {
-                    // Update UI during streaming
-                    if (outputText) outputText.text = streamContent;
-                }, 
-                cts.Token
-            );
+        // Direct token-based TTS streaming
+        var ttsBuffer = new StringBuilder();
+        
+        var response = await ollamaClient.SendChatAsync(
+            messages,
+            npcProfile.temperature,
+            npcProfile.repeatPenalty,
+            (streamContent) => {
+                if (outputText) outputText.text = streamContent;
+            },
+            (token) => {
+                // Add tokens to buffer for sentence-level TTS processing
+                if (npcProfile.enableTTS && NPCManager.Instance.globalTTSEnabled)
+                {
+                    ttsBuffer.Append(token);
+                    
+                    // Process only on sentence-ending punctuation for bigger chunks
+                    var bufferText = ttsBuffer.ToString();
+                    if (token.Contains(".") || token.Contains("!") || token.Contains("?") || 
+                        (bufferText.Length > 50 && token.Contains(","))) // Or long phrases with commas
+                    {
+                        if (bufferText.Trim().Length > 0)
+                        {
+                            EnqueueTTSChunk(bufferText.Trim());
+                            ttsBuffer.Clear();
+                        }
+                    }
+                }
+            },
+            cts.Token
+        );
 
-            if (!string.IsNullOrEmpty(response.error))
-            {
-                if (outputText) outputText.text = "Error: " + response.error;
-                return;
-            }
-
-            // Broadcast response to other NPCs
-            if (broadcastResponses && NPCManager.Instance != null)
-            {
-                NPCManager.Instance.BroadcastMessage(this, response.content);
-            }
-            
-            // Speak the response with TTS (check global and individual settings)
-            bool shouldUseTTS = npcProfile.enableTTS && 
-                               (NPCManager.Instance == null || NPCManager.Instance.globalTTSEnabled);
-                               
-            if (shouldUseTTS && !string.IsNullOrEmpty(response.content))
-            {
-                StartCoroutine(SpeakText(response.content));
-            }
-        }
-        catch (OperationCanceledException)
+        if (!string.IsNullOrEmpty(response.error))
         {
-            if (outputText) outputText.text = "Cancelled";
-        }
-        catch (Exception ex)
-        {
-            if (outputText) outputText.text = "Error: " + ex.Message;
-        }
-        finally
-        {
+            if (outputText) outputText.text = "Error: " + response.error;
             isCurrentlySpeaking = false;
+            return;
         }
+
+        // Process any remaining text in buffer for TTS
+        if (npcProfile.enableTTS && NPCManager.Instance.globalTTSEnabled && ttsBuffer.Length > 0)
+        {
+            EnqueueTTSChunk(ttsBuffer.ToString().Trim());
+        }
+
+        // Broadcast response to other NPCs
+        if (broadcastResponses && NPCManager.Instance != null)
+        {
+            NPCManager.Instance.BroadcastMessage(this, response.content);
+        }
+        
+        isCurrentlySpeaking = false;
     }
 
-    /// <summary>
-    /// Receive a message from another NPC
-    /// </summary>
     public void ReceiveExternalMessage(string senderName, string message)
     {
-        string formattedMessage = $"{senderName}: {message}";
-        externalMessages.Add(formattedMessage);
+        externalMessages.Add($"{senderName}: {message}");
+        if (externalMessages.Count > 3) externalMessages.RemoveAt(0);
         
-        // Keep only last few external messages to avoid context overflow
-        while (externalMessages.Count > 3)
-        {
-            externalMessages.RemoveAt(0);
-        }
-        
-        // Update UI to show external messages
         if (externalMessagesText != null)
-        {
             externalMessagesText.text = "Messages from others:\n" + string.Join("\n", externalMessages);
-        }
         
-        // Auto-respond if enabled and not currently speaking
+        // Simple auto-respond
         if (enableAutoResponse && !isCurrentlySpeaking && UnityEngine.Random.value < responseChance)
+            Invoke(nameof(AutoRespond), responseDelay + UnityEngine.Random.Range(-0.5f, 1f));
+    }
+    
+    private void AutoRespond()
+    {
+        if (!isCurrentlySpeaking && externalMessages.Count > 0)
         {
-            // Cancel any pending auto-response
-            if (autoResponseCoroutine != null)
-            {
-                StopCoroutine(autoResponseCoroutine);
-            }
-            
-            // Start delayed auto-response
-            autoResponseCoroutine = StartCoroutine(DelayedAutoResponse(senderName, message));
+            string lastMessage = externalMessages[externalMessages.Count - 1];
+            SendMessage($"Respond to: {lastMessage}");
+        }
+    }
+
+    /// <summary>
+    /// Add text chunk to TTS queue for sequential processing
+    /// </summary>
+    private void EnqueueTTSChunk(string textChunk)
+    {
+        if (string.IsNullOrEmpty(textChunk)) return;
+        
+        ttsQueue.Enqueue(textChunk);
+        
+        // Start processing if not already running
+        if (!isProcessingTTS)
+        {
+            StartCoroutine(ProcessTTSQueue());
         }
     }
     
     /// <summary>
-    /// Auto-respond to a message after a delay
+    /// Process TTS queue sequentially to maintain order
     /// </summary>
-    private IEnumerator DelayedAutoResponse(string senderName, string message)
+    private IEnumerator ProcessTTSQueue()
     {
-        // Wait for response delay (with some randomness)
-        float actualDelay = responseDelay + UnityEngine.Random.Range(-0.5f, 1f);
-        yield return new WaitForSeconds(actualDelay);
+        isProcessingTTS = true;
         
-        // Make sure we're still able to respond
-        if (!isCurrentlySpeaking && npcProfile != null)
+        while (ttsQueue.Count > 0)
         {
-            // Create a response prompt that references the sender's message
-            string responsePrompt = $"Respond to what {senderName} just said: \"{message}\"";
-            Debug.Log($"{npcProfile.npcName} auto-responding to {senderName}");
-            SendMessage(responsePrompt);
+            string textChunk = ttsQueue.Dequeue();
+            yield return StartCoroutine(ProcessSingleTTSChunk(textChunk));
+        }
+        
+        isProcessingTTS = false;
+    }
+    
+    /// <summary>
+    /// Process a single TTS chunk and play it immediately
+    /// </summary>
+    private IEnumerator ProcessSingleTTSChunk(string textChunk)
+    {
+        if (string.IsNullOrEmpty(textChunk) || npcProfile?.audioSource == null) yield break;
+
+        // Generate TTS in background thread
+        var ttsTask = System.Threading.Tasks.Task.Run(() => GenerateAudioData(textChunk));
+        
+        // Wait for TTS generation without blocking Unity
+        while (!ttsTask.IsCompleted)
+            yield return new WaitForSeconds(0.01f);
+        
+        var audioBytes = ttsTask.Result;
+        if (audioBytes != null && audioBytes.Length > 0)
+        {
+            // Convert to Unity AudioClip on main thread
+            float[] audioData = new float[audioBytes.Length / 2];
+            for (int i = 0; i < audioData.Length; i++)
+            {
+                short sample = System.BitConverter.ToInt16(audioBytes, i * 2);
+                audioData[i] = sample / 32768f;
+            }
+            
+            AudioClip clip = AudioClip.Create($"TTS_{Time.time}", audioData.Length, 1, 22050, false);
+            clip.SetData(audioData, 0);
+            
+            // Wait for current audio to finish, then play this chunk
+            while (npcProfile.audioSource.isPlaying)
+                yield return new WaitForSeconds(0.02f);
+            
+            npcProfile.audioSource.clip = clip;
+            npcProfile.audioSource.Play();
+            
+            // Wait for this chunk to finish before processing next
+            while (npcProfile.audioSource.isPlaying)
+                yield return new WaitForSeconds(0.02f);
         }
     }
     
-    private IEnumerator SpeakText(string text)
-    {
-        if (string.IsNullOrEmpty(text) || npcProfile?.audioSource == null) yield break;
-        
-        // Create TTS request with proper JSON format
-        string json = $@"{{
-            ""input"": ""{text.Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r")}"",
-            ""voice"": ""{npcProfile.voiceName}""
-        }}";
-        
-        Debug.Log($"TTS Request: {json}");
-        
-        var request = new HttpRequestMessage(HttpMethod.Post, TTS_ENDPOINT)
-        {
-            Content = new StringContent(json, Encoding.UTF8, "application/json")
-        };
-        
-        // Send request
-        var responseTask = httpClient.SendAsync(request);
-        while (!responseTask.IsCompleted)
-            yield return new WaitForSeconds(0.01f);
-            
-        var response = responseTask.Result;
-        if (!response.IsSuccessStatusCode)
-        {
-            Debug.LogError($"TTS failed for {npcProfile.npcName}: {response.StatusCode}");
-            yield break;
-        }
-        
-        // Get audio data
-        var audioTask = response.Content.ReadAsByteArrayAsync();
-        while (!audioTask.IsCompleted)
-            yield return new WaitForSeconds(0.01f);
-            
-        var audioData = audioTask.Result;
-        
-        // Save temp file and play
-        string tempFile = System.IO.Path.GetTempFileName() + ".mp3";
-        System.IO.File.WriteAllBytes(tempFile, audioData);
-        
-        using (var www = UnityEngine.Networking.UnityWebRequestMultimedia.GetAudioClip("file://" + tempFile, AudioType.MPEG))
-        {
-            yield return www.SendWebRequest();
-            
-            if (www.result == UnityEngine.Networking.UnityWebRequest.Result.Success)
-            {
-                var clip = UnityEngine.Networking.DownloadHandlerAudioClip.GetContent(www);
-                if (clip != null)
-                {
-                    npcProfile.audioSource.clip = clip;
-                    npcProfile.audioSource.Play();
-                    Debug.Log($"{npcProfile.npcName} speaking: {text}");
-                    
-                    // Wait for audio to finish
-                    while (npcProfile.audioSource.isPlaying)
-                        yield return new WaitForSeconds(0.1f);
-                }
-            }
-        }
-        
-        // Cleanup
-        if (System.IO.File.Exists(tempFile))
-            System.IO.File.Delete(tempFile);
-    }
-
     /// <summary>
-    /// Start a conversation manually (for testing)
+    /// Generate audio data in background thread
     /// </summary>
-    [ContextMenu("Start Conversation")]
-    public void StartConversation()
+    private byte[] GenerateAudioData(string text)
     {
-        if (npcProfile != null)
+        string tempScript = System.IO.Path.GetTempFileName() + ".py";
+        string cleanText = text.Replace("'", "\\'").Replace("\"", "\\\"").Replace("\n", " ").Trim();
+        
+        if (string.IsNullOrEmpty(cleanText)) return new byte[0];
+        
+        string script = $@"
+from piper import PiperVoice
+import sys
+
+voice = PiperVoice.load('voices/{npcProfile.voiceName}.onnx')
+text = '{cleanText}'
+
+audio_data = []
+for chunk in voice.synthesize(text):
+    audio_data.extend(chunk.audio_int16_bytes)
+
+sys.stdout.buffer.write(bytes(audio_data))
+";
+
+        System.IO.File.WriteAllText(tempScript, script);
+        
+        var process = new System.Diagnostics.Process();
+        process.StartInfo.FileName = "python";
+        process.StartInfo.Arguments = $"\"{tempScript}\"";
+        process.StartInfo.UseShellExecute = false;
+        process.StartInfo.CreateNoWindow = true;
+        process.StartInfo.RedirectStandardOutput = true;
+        
+        process.Start();
+        
+        var audioBytes = new List<byte>();
+        var buffer = new byte[8192];
+        int bytesRead;
+        
+        while ((bytesRead = process.StandardOutput.BaseStream.Read(buffer, 0, buffer.Length)) > 0)
         {
-            string starter = $"Hello everyone! I'm {npcProfile.npcName}. What's on your mind today?";
-            SendMessage(starter);
+            for (int i = 0; i < bytesRead; i++)
+                audioBytes.Add(buffer[i]);
         }
+        
+        process.WaitForExit();
+        process?.Dispose();
+        System.IO.File.Delete(tempScript);
+        
+        return audioBytes.ToArray();
     }
 
-    void OnDestroy()
-    {
-        cts?.Cancel();
-        
-        if (autoResponseCoroutine != null)
-        {
-            StopCoroutine(autoResponseCoroutine);
-        }
-        
-        // Unregister from NPCManager
-        if (NPCManager.Instance != null && NPCManager.Instance.npcInstances.Contains(this))
-        {
-            NPCManager.Instance.npcInstances.Remove(this);
-        }
-    }
+
+
+
 }
+

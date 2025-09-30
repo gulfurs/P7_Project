@@ -82,14 +82,7 @@ public class NPCManager : MonoBehaviour
         return names;
     }
     
-    /// <summary>
-    /// Start an autonomous conversation with a topic
-    /// </summary>
-    [ContextMenu("Start Group Conversation")]
-    public void StartGroupConversation()
-    {
-        StartGroupConversation("What interesting topics have you been thinking about lately?");
-    }
+
     
     /// <summary>
     /// Quick TTS control for debugging
@@ -115,17 +108,6 @@ public class NPCManager : MonoBehaviour
         Debug.Log("🔊 All TTS ENABLED");
     }
     
-    public void StartGroupConversation(string topic)
-    {
-        if (npcInstances.Count > 0)
-        {
-            // Pick a random NPC to start the conversation
-            var starter = npcInstances[UnityEngine.Random.Range(0, npcInstances.Count)];
-            if (starter != null && starter.npcProfile != null)
-            {
-                Debug.Log($"Starting group conversation with topic: {topic}");
-                starter.SendMessage(topic);
-            }
-        }
-    }
+
 }
+

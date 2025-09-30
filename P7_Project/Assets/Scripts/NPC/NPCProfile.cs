@@ -23,7 +23,7 @@ public class NPCProfile
     public float repeatPenalty = 1.1f;
     
     [Header("TTS Settings")]
-    public string voiceName = "af_bella"; // KoKoro voice
+    public string voiceName = "en_US-lessac-medium"; // Piper voice model name
     public bool enableTTS = true;
     public AudioSource audioSource;
     

@@ -27,7 +27,7 @@ public class OllamaChatClient : MonoBehaviour
     }
 
     public async Task<ChatResponse> SendChatAsync(List<ChatMessage> messages, float temperature, float repeatPenalty, 
-        Action<string> onStreamUpdate = null, CancellationToken cancellationToken = default)
+        Action<string> onStreamUpdate = null, Action<string> onTokenReceived = null, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -55,6 +55,7 @@ public class OllamaChatClient : MonoBehaviour
                 {
                     fullResponse.Append(delta);
                     onStreamUpdate?.Invoke(fullResponse.ToString());
+                    onTokenReceived?.Invoke(delta); // Send individual token/chunk immediately
                 }
             }
 
