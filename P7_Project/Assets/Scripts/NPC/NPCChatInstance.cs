@@ -289,7 +289,7 @@ public class NPCChatInstance : MonoBehaviour
 from piper import PiperVoice
 import sys
 
-voice = PiperVoice.load('voices/{npcProfile.voiceName}.onnx')
+voice = PiperVoice.load('{npcProfile.voiceName}.onnx')
 text = '{cleanText}'
 
 audio_data = []
