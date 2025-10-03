@@ -27,6 +27,9 @@ public class NPCProfile
     public bool enableTTS = true;
     public AudioSource audioSource;
     
+    [Header("Animator & Non-Verbal Actions")]
+    public NPCAnimatorConfig animatorConfig;
+    
     // Optional reference to the NPC's visual representation
     public GameObject npcGameObject;
     
@@ -47,6 +50,17 @@ public class NPCProfile
         fullPrompt += "\n- Ask questions to other characters to keep the conversation flowing";
         fullPrompt += "\n- Reference what others have said when appropriate";
         fullPrompt += "\n- Stay in character and be engaging";
+        
+        // Add non-verbal action metadata instructions
+        fullPrompt += "\n\n=== NON-VERBAL ACTIONS ===";
+        fullPrompt += "\nInclude JSON at START: [META]{\"animatorTrigger\":\"<trigger>\",\"isFocused\":true/false,\"isIgnoring\":true/false,\"shouldInterrupt\":true/false}[/META]";
+        
+        if (animatorConfig != null && animatorConfig.availableTriggers.Count > 0)
+        {
+            fullPrompt += "\nTriggers: " + animatorConfig.GetTriggerListForPrompt() + " (nod=agree, shake_head=disagree, smile=happy, eye_roll=dismissive, lean_forward=engaged, lean_back=disengaged)";
+        }
+        
+        fullPrompt += "\nExample: [META]{\"animatorTrigger\":\"nod\",\"isFocused\":true,\"isIgnoring\":false,\"shouldInterrupt\":false}[/META]\nHello there!";
             
         return fullPrompt;
     }

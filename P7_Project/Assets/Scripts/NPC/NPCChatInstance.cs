@@ -35,6 +35,11 @@ public class NPCChatInstance : MonoBehaviour
     // TTS Queue System
     private readonly Queue<string> ttsQueue = new Queue<string>();
     private bool isProcessingTTS = false;
+    
+    // Non-verbal metadata tracking
+    private NPCMetadata currentMetadata;
+    private string metadataBuffer = "";
+    private bool isParsingMetadata = false;
 
     void Start()
     {
@@ -126,34 +131,25 @@ public class NPCChatInstance : MonoBehaviour
         // Clear output
         if (outputText) outputText.text = "";
 
+        // Reset metadata tracking
+        currentMetadata = null;
+        metadataBuffer = "";
+        isParsingMetadata = false;
+
         // Direct token-based TTS streaming
         var ttsBuffer = new StringBuilder();
+        var displayBuffer = new StringBuilder(); // For display without metadata tags
         
         var response = await ollamaClient.SendChatAsync(
             messages,
             npcProfile.temperature,
             npcProfile.repeatPenalty,
             (streamContent) => {
-                if (outputText) outputText.text = streamContent;
+                // Display is handled per-token now
             },
             (token) => {
-                // Add tokens to buffer for sentence-level TTS processing
-                if (npcProfile.enableTTS && NPCManager.Instance.globalTTSEnabled)
-                {
-                    ttsBuffer.Append(token);
-                    
-                    // Process only on sentence-ending punctuation for bigger chunks
-                    var bufferText = ttsBuffer.ToString();
-                    if (token.Contains(".") || token.Contains("!") || token.Contains("?") || 
-                        (bufferText.Length > 50 && token.Contains(","))) // Or long phrases with commas
-                    {
-                        if (bufferText.Trim().Length > 0)
-                        {
-                            EnqueueTTSChunk(bufferText.Trim());
-                            ttsBuffer.Clear();
-                        }
-                    }
-                }
+                // Parse metadata tags and extract dialogue
+                ProcessToken(token, ttsBuffer, displayBuffer);
             },
             cts.Token
         );
@@ -168,7 +164,12 @@ public class NPCChatInstance : MonoBehaviour
         // Process any remaining text in buffer for TTS
         if (npcProfile.enableTTS && NPCManager.Instance.globalTTSEnabled && ttsBuffer.Length > 0)
         {
-            EnqueueTTSChunk(ttsBuffer.ToString().Trim());
+            string chunk = ttsBuffer.ToString().Trim();
+            if (chunk.Length > 0)
+            {
+                ttsQueue.Enqueue(chunk);
+                if (!isProcessingTTS) StartCoroutine(ProcessTTSQueue());
+            }
         }
 
         // Broadcast response to other NPCs
@@ -203,21 +204,81 @@ public class NPCChatInstance : MonoBehaviour
     }
 
     /// <summary>
-    /// Add text chunk to TTS queue for sequential processing
+    /// Process incoming tokens, extract metadata, and separate dialogue for TTS
     /// </summary>
-    private void EnqueueTTSChunk(string textChunk)
+    private void ProcessToken(string token, StringBuilder ttsBuffer, StringBuilder displayBuffer)
     {
-        if (string.IsNullOrEmpty(textChunk)) return;
-        
-        ttsQueue.Enqueue(textChunk);
-        
-        // Start processing if not already running
-        if (!isProcessingTTS)
+        foreach (char c in token)
         {
-            StartCoroutine(ProcessTTSQueue());
+            // Check for metadata start tag
+            if (!isParsingMetadata && metadataBuffer.Length < 6)
+            {
+                metadataBuffer += c;
+                if (metadataBuffer == "[META]")
+                {
+                    isParsingMetadata = true;
+                    metadataBuffer = "";
+                    continue;
+                }
+                else if (!"[META]".StartsWith(metadataBuffer))
+                {
+                    // Not metadata tag, flush buffer to display
+                    displayBuffer.Append(metadataBuffer);
+                    metadataBuffer = "";
+                }
+            }
+            
+            // Parsing metadata content
+            if (isParsingMetadata)
+            {
+                metadataBuffer += c;
+                
+                // Check for metadata end tag
+                if (metadataBuffer.EndsWith("[/META]"))
+                {
+                    // Extract JSON and execute inline
+                    string jsonContent = metadataBuffer.Substring(0, metadataBuffer.Length - 7);
+                    currentMetadata = NPCMetadata.ParseFromJson(jsonContent);
+                    
+                    // Execute animator trigger immediately
+                    if (!string.IsNullOrEmpty(currentMetadata.animatorTrigger) && npcProfile.animatorConfig != null)
+                        npcProfile.animatorConfig.TriggerAnimation(currentMetadata.animatorTrigger);
+                    
+                    // Reset
+                    isParsingMetadata = false;
+                    metadataBuffer = "";
+                    continue;
+                }
+            }
+            else
+            {
+                // Normal dialogue text
+                displayBuffer.Append(c);
+                
+                // TTS processing - larger chunks for performance
+                if (npcProfile.enableTTS && NPCManager.Instance.globalTTSEnabled)
+                {
+                    ttsBuffer.Append(c);
+                    
+                    // Process on sentence endings or long phrases
+                    if (c == '.' || c == '!' || c == '?' || (ttsBuffer.Length > 60 && c == ','))
+                    {
+                        string chunk = ttsBuffer.ToString().Trim();
+                        if (chunk.Length > 0)
+                        {
+                            ttsQueue.Enqueue(chunk);
+                            if (!isProcessingTTS) StartCoroutine(ProcessTTSQueue());
+                            ttsBuffer.Clear();
+                        }
+                    }
+                }
+            }
         }
+        
+        // Update UI with clean dialogue (no metadata tags)
+        if (outputText) outputText.text = displayBuffer.ToString();
     }
-    
+
     /// <summary>
     /// Process TTS queue sequentially to maintain order
     /// </summary>
@@ -244,34 +305,32 @@ public class NPCChatInstance : MonoBehaviour
         // Generate TTS in background thread
         var ttsTask = System.Threading.Tasks.Task.Run(() => GenerateAudioData(textChunk));
         
-        // Wait for TTS generation without blocking Unity
+        // Wait for TTS generation - reduced polling interval
         while (!ttsTask.IsCompleted)
-            yield return new WaitForSeconds(0.01f);
+            yield return null; // Wait one frame instead of fixed time
         
         var audioBytes = ttsTask.Result;
         if (audioBytes != null && audioBytes.Length > 0)
         {
-            // Convert to Unity AudioClip on main thread
-            float[] audioData = new float[audioBytes.Length / 2];
-            for (int i = 0; i < audioData.Length; i++)
-            {
-                short sample = System.BitConverter.ToInt16(audioBytes, i * 2);
-                audioData[i] = sample / 32768f;
-            }
+            // Convert to Unity AudioClip - optimized with BitConverter
+            int sampleCount = audioBytes.Length / 2;
+            float[] audioData = new float[sampleCount];
+            for (int i = 0; i < sampleCount; i++)
+                audioData[i] = System.BitConverter.ToInt16(audioBytes, i * 2) / 32768f;
             
-            AudioClip clip = AudioClip.Create($"TTS_{Time.time}", audioData.Length, 1, 22050, false);
+            AudioClip clip = AudioClip.Create($"TTS_{Time.time}", sampleCount, 1, 22050, false);
             clip.SetData(audioData, 0);
             
-            // Wait for current audio to finish, then play this chunk
+            // Wait for current audio to finish
             while (npcProfile.audioSource.isPlaying)
-                yield return new WaitForSeconds(0.02f);
+                yield return null;
             
             npcProfile.audioSource.clip = clip;
             npcProfile.audioSource.Play();
             
-            // Wait for this chunk to finish before processing next
+            // Wait for this chunk to finish
             while (npcProfile.audioSource.isPlaying)
-                yield return new WaitForSeconds(0.02f);
+                yield return null;
         }
     }
     
