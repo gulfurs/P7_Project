@@ -33,18 +33,11 @@ public class NPCMetadata
         var metadata = new NPCMetadata();
         if (string.IsNullOrEmpty(json)) return metadata;
         
-        try
-        {
-            // Simple JSON parsing without external dependencies
-            metadata.animatorTrigger = ExtractStringValue(json, "animatorTrigger");
-            metadata.isFocused = ExtractBoolValue(json, "isFocused");
-            metadata.isIgnoring = ExtractBoolValue(json, "isIgnoring");
-            metadata.shouldInterrupt = ExtractBoolValue(json, "shouldInterrupt");
-        }
-        catch (Exception ex)
-        {
-            Debug.LogWarning($"Failed to parse NPC metadata: {ex.Message}");
-        }
+        // Simple JSON parsing without external dependencies
+        metadata.animatorTrigger = ExtractStringValue(json, "animatorTrigger");
+        metadata.isFocused = ExtractBoolValue(json, "isFocused");
+        metadata.isIgnoring = ExtractBoolValue(json, "isIgnoring");
+        metadata.shouldInterrupt = ExtractBoolValue(json, "shouldInterrupt");
         
         return metadata;
     }
@@ -130,17 +123,9 @@ public class NPCAnimatorConfig
             return false;
         }
         
-        try
-        {
-            animator.SetTrigger(triggerName);
-            Debug.Log($"✓ Triggered animation: {triggerName}");
-            return true;
-        }
-        catch (Exception ex)
-        {
-            Debug.LogError($"Failed to trigger animation '{triggerName}': {ex.Message}");
-            return false;
-        }
+        animator.SetTrigger(triggerName);
+        Debug.Log($"✓ Triggered animation: {triggerName}");
+        return true;
         */
     }
     
