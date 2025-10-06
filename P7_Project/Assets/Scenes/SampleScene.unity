@@ -2117,10 +2117,19 @@ MonoBehaviour:
     voiceName: en_US-lessac-medium
     enableTTS: 1
     audioSource: {fileID: 1641263690}
+    animatorConfig:
+      animator: {fileID: 0}
+      availableTriggers:
+      - nod
+      - shake_head
+      - lean_forward
+      - lean_back
+      - smile
+      - eye_roll
     npcGameObject: {fileID: 0}
   ollamaClient: {fileID: 812325951}
-  broadcastResponses: 0
-  enableAutoResponse: 0
+  broadcastResponses: 1
+  enableAutoResponse: 1
   responseDelay: 2
   responseChance: 0.8
   userInput: {fileID: 2006649159}
@@ -2185,10 +2194,19 @@ MonoBehaviour:
     voiceName: en_US-lessac-medium
     enableTTS: 1
     audioSource: {fileID: 1641263690}
+    animatorConfig:
+      animator: {fileID: 0}
+      availableTriggers:
+      - nod
+      - shake_head
+      - lean_forward
+      - lean_back
+      - smile
+      - eye_roll
     npcGameObject: {fileID: 0}
   ollamaClient: {fileID: 812325951}
   broadcastResponses: 1
-  enableAutoResponse: 0
+  enableAutoResponse: 1
   responseDelay: 2
   responseChance: 0.8
   userInput: {fileID: 16006732}

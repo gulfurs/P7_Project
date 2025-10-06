@@ -101,3 +101,7 @@ InitTestScene*.unity*
 # Piper TTS voice models (large files)
 *.onnx
 *.onnx.json
+
+# .NET build artifacts
+**/bin/
+**/obj/

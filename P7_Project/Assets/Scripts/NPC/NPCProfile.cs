@@ -57,10 +57,19 @@ public class NPCProfile
         
         if (animatorConfig != null && animatorConfig.availableTriggers.Count > 0)
         {
-            fullPrompt += "\nTriggers: " + animatorConfig.GetTriggerListForPrompt() + " (nod=agree, shake_head=disagree, smile=happy, eye_roll=dismissive, lean_forward=engaged, lean_back=disengaged)";
+            fullPrompt += "\nTriggers: " + animatorConfig.GetTriggerListForPrompt();
+            fullPrompt += "\n  • nod=agree, shake_head=disagree";
+            fullPrompt += "\n  • smile=happy, eye_roll=dismissive";
+            fullPrompt += "\n  • lean_forward=engaged, lean_back=disengaged";
+            fullPrompt += "\n  • idle=neutral/casual stance";
         }
         
-        fullPrompt += "\nExample: [META]{\"animatorTrigger\":\"nod\",\"isFocused\":true,\"isIgnoring\":false,\"shouldInterrupt\":false}[/META]\nHello there!";
+        fullPrompt += "\nAttention States:";
+        fullPrompt += "\n  • isFocused=true: Actively paying attention, engaged";
+        fullPrompt += "\n  • isIgnoring=true: Disengaged, not interested";
+        fullPrompt += "\n  • Both false: Neutral/idle state";
+        
+        fullPrompt += "\nExample: [META]{\"animatorTrigger\":\"nod\",\"isFocused\":true,\"isIgnoring\":false,\"shouldInterrupt\":false}[/META]Hello there!";
             
         return fullPrompt;
     }

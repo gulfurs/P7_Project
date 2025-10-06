@@ -210,25 +210,7 @@ public class NPCChatInstance : MonoBehaviour
     {
         foreach (char c in token)
         {
-            // Check for metadata start tag
-            if (!isParsingMetadata && metadataBuffer.Length < 6)
-            {
-                metadataBuffer += c;
-                if (metadataBuffer == "[META]")
-                {
-                    isParsingMetadata = true;
-                    metadataBuffer = "";
-                    continue;
-                }
-                else if (!"[META]".StartsWith(metadataBuffer))
-                {
-                    // Not metadata tag, flush buffer to display
-                    displayBuffer.Append(metadataBuffer);
-                    metadataBuffer = "";
-                }
-            }
-            
-            // Parsing metadata content
+            // Parsing metadata content (already inside [META]...)
             if (isParsingMetadata)
             {
                 metadataBuffer += c;
@@ -244,32 +226,75 @@ public class NPCChatInstance : MonoBehaviour
                     if (!string.IsNullOrEmpty(currentMetadata.animatorTrigger) && npcProfile.animatorConfig != null)
                         npcProfile.animatorConfig.TriggerAnimation(currentMetadata.animatorTrigger);
                     
+                    // Apply attention states
+                    if (currentMetadata.isFocused && npcProfile.animatorConfig != null)
+                        npcProfile.animatorConfig.SetAttentionState(AttentionState.Focused);
+                    else if (currentMetadata.isIgnoring && npcProfile.animatorConfig != null)
+                        npcProfile.animatorConfig.SetAttentionState(AttentionState.Ignoring);
+                    else if (npcProfile.animatorConfig != null)
+                        npcProfile.animatorConfig.SetAttentionState(AttentionState.Idle);
+                    
                     // Reset
                     isParsingMetadata = false;
                     metadataBuffer = "";
                     continue;
                 }
+                // Still collecting metadata, don't add to display
+                continue;
             }
-            else
+            
+            // Check for metadata start tag
+            if (metadataBuffer.Length < 6)
             {
-                // Normal dialogue text
-                displayBuffer.Append(c);
+                metadataBuffer += c;
                 
-                // TTS processing - larger chunks for performance
-                if (npcProfile.enableTTS && NPCManager.Instance.globalTTSEnabled)
+                // Found complete [META] tag
+                if (metadataBuffer == "[META]")
                 {
-                    ttsBuffer.Append(c);
+                    isParsingMetadata = true;
+                    metadataBuffer = "";
+                    continue;
+                }
+                
+                // Check if we're still building [META]
+                if ("[META]".StartsWith(metadataBuffer))
+                {
+                    // Still possibly building [META], wait for more chars
+                    continue;
+                }
+                else
+                {
+                    // Not a [META] tag, flush accumulated buffer to display
+                    displayBuffer.Append(metadataBuffer);
                     
-                    // Process on sentence endings or long phrases
-                    if (c == '.' || c == '!' || c == '?' || (ttsBuffer.Length > 60 && c == ','))
+                    // Also add to TTS if enabled
+                    if (npcProfile.enableTTS && NPCManager.Instance.globalTTSEnabled)
                     {
-                        string chunk = ttsBuffer.ToString().Trim();
-                        if (chunk.Length > 0)
-                        {
-                            ttsQueue.Enqueue(chunk);
-                            if (!isProcessingTTS) StartCoroutine(ProcessTTSQueue());
-                            ttsBuffer.Clear();
-                        }
+                        ttsBuffer.Append(metadataBuffer);
+                    }
+                    
+                    metadataBuffer = "";
+                    continue;
+                }
+            }
+            
+            // Normal dialogue text (not in metadata, not building [META] tag)
+            displayBuffer.Append(c);
+            
+            // TTS processing - larger chunks for performance
+            if (npcProfile.enableTTS && NPCManager.Instance.globalTTSEnabled)
+            {
+                ttsBuffer.Append(c);
+                
+                // Process on sentence endings or long phrases
+                if (c == '.' || c == '!' || c == '?' || (ttsBuffer.Length > 60 && c == ','))
+                {
+                    string chunk = ttsBuffer.ToString().Trim();
+                    if (chunk.Length > 0)
+                    {
+                        ttsQueue.Enqueue(chunk);
+                        if (!isProcessingTTS) StartCoroutine(ProcessTTSQueue());
+                        ttsBuffer.Clear();
                     }
                 }
             }
