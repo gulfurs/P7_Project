@@ -18,12 +18,10 @@ public class DialogueManager : MonoBehaviour
     public float minimumTurnGap = 1.5f;
     
     private readonly List<string> speakerHistory = new List<string>();
-    private readonly Queue<InterruptionRequest> interruptionQueue = new Queue<InterruptionRequest>();
     private readonly Queue<NPCTurnRequest> turnQueue = new Queue<NPCTurnRequest>();
     
     [Header("Debug Info")]
     public int totalTurns = 0;
-    public int totalInterruptions = 0;
     public int queuedRequests = 0;
     
     void Awake()
@@ -135,39 +133,6 @@ public class DialogueManager : MonoBehaviour
     }
     
     /// <summary>
-    /// Request an interruption
-    /// </summary>
-    public void RequestInterruption(string npcName, string reason)
-    {
-        interruptionQueue.Enqueue(new InterruptionRequest
-        {
-            npcName = npcName,
-            reason = reason,
-            timestamp = Time.time
-        });
-        
-        totalInterruptions++;
-        Debug.Log($"⚠️ {npcName} wants to interrupt: {reason}");
-    }
-    
-    /// <summary>
-    /// Check if this NPC should be allowed to interrupt
-    /// </summary>
-    public bool CanInterrupt(string npcName)
-    {
-        // Simple rule: if someone is speaking and you have an interruption queued
-        if (!string.IsNullOrEmpty(currentSpeaker) && currentSpeaker != npcName)
-        {
-            foreach (var req in interruptionQueue)
-            {
-                if (req.npcName == npcName)
-                    return true;
-            }
-        }
-        return false;
-    }
-    
-    /// <summary>
     /// Get recent speaker history as string
     /// </summary>
     public string GetSpeakerHistory()
@@ -183,14 +148,8 @@ public class DialogueManager : MonoBehaviour
     {
         if (speakerHistory.Count == 0) return false;
         
-        // Check last 2 turns
-        int checkCount = Mathf.Min(2, speakerHistory.Count);
-        for (int i = speakerHistory.Count - 1; i >= speakerHistory.Count - checkCount; i--)
-        {
-            if (speakerHistory[i] == npcName)
-                return true;
-        }
-        return false;
+        // Check if this NPC was the last speaker
+        return speakerHistory[speakerHistory.Count - 1] == npcName;
     }
     
     /// <summary>
@@ -200,24 +159,12 @@ public class DialogueManager : MonoBehaviour
     public void ClearHistory()
     {
         speakerHistory.Clear();
-        interruptionQueue.Clear();
         turnQueue.Clear();
         currentSpeaker = "";
         totalTurns = 0;
-        totalInterruptions = 0;
         queuedRequests = 0;
         Debug.Log("🔄 Conversation history cleared");
     }
-}
-
-/// <summary>
-/// Represents an interruption request
-/// </summary>
-public class InterruptionRequest
-{
-    public string npcName;
-    public string reason;
-    public float timestamp;
 }
 
 /// <summary>

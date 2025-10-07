@@ -53,7 +53,7 @@ public class NPCProfile
         
         // Add non-verbal action metadata instructions
         fullPrompt += "\n\n=== NON-VERBAL ACTIONS ===";
-        fullPrompt += "\nInclude JSON at START: [META]{\"animatorTrigger\":\"<trigger>\",\"isFocused\":true/false,\"isIgnoring\":true/false,\"shouldInterrupt\":true/false}[/META]";
+        fullPrompt += "\nInclude JSON at START: [META]{\"animatorTrigger\":\"<trigger>\",\"isFocused\":true/false,\"isIgnoring\":true/false}[/META]";
         
         if (animatorConfig != null && animatorConfig.availableTriggers.Count > 0)
         {
@@ -69,7 +69,7 @@ public class NPCProfile
         fullPrompt += "\n  • isIgnoring=true: Disengaged, not interested";
         fullPrompt += "\n  • Both false: Neutral/idle state";
         
-        fullPrompt += "\nExample: [META]{\"animatorTrigger\":\"nod\",\"isFocused\":true,\"isIgnoring\":false,\"shouldInterrupt\":false}[/META]Hello there!";
+        fullPrompt += "\nExample: [META]{\"animatorTrigger\":\"nod\",\"isFocused\":true,\"isIgnoring\":false}[/META]Hello there!";
             
         return fullPrompt;
     }

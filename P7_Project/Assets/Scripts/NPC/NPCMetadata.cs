@@ -21,12 +21,10 @@ public class NPCMetadata
     public string animatorTrigger = "";
     public bool isFocused = false;
     public bool isIgnoring = false;
-    public bool shouldInterrupt = false;
-    // Future: attention direction, gaze target, etc.
     
     /// <summary>
     /// Parse JSON metadata from LLM response
-    /// Format: {"animatorTrigger": "Wave", "isFocused": true, "isIgnoring": false, "shouldInterrupt": false}
+    /// Format: {"animatorTrigger": "nod", "isFocused": true, "isIgnoring": false}
     /// </summary>
     public static NPCMetadata ParseFromJson(string json)
     {
@@ -37,7 +35,6 @@ public class NPCMetadata
         metadata.animatorTrigger = ExtractStringValue(json, "animatorTrigger");
         metadata.isFocused = ExtractBoolValue(json, "isFocused");
         metadata.isIgnoring = ExtractBoolValue(json, "isIgnoring");
-        metadata.shouldInterrupt = ExtractBoolValue(json, "shouldInterrupt");
         
         return metadata;
     }

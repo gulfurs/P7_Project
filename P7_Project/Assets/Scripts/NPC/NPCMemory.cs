@@ -57,6 +57,14 @@ public class NPCMemory
     }
     
     /// <summary>
+    /// Get all facts as a list
+    /// </summary>
+    public List<string> GetAllFacts()
+    {
+        return new List<string>(mediumTermMemory);
+    }
+    
+    /// <summary>
     /// Get short-term memory as formatted string for prompt
     /// </summary>
     public string GetShortTermContext()

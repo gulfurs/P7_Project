@@ -7,16 +7,26 @@ using UnityEngine;
 /// <summary>
 /// Handles TTS audio generation and playback for NPCs
 /// Separated from main NPC chat logic for clarity
+/// Pre-generates audio while waiting for turn to speak
 /// </summary>
 public class NPCTTSHandler : MonoBehaviour
 {
     private AudioSource audioSource;
     private string voiceName;
     
-    private readonly Queue<string> ttsQueue = new Queue<string>();
-    private readonly Queue<AudioClip> preRenderedClips = new Queue<AudioClip>();
-    private bool isProcessingTTS = false;
+    private readonly Queue<TTSRequest> ttsQueue = new Queue<TTSRequest>();
+    private readonly Queue<TTSRequest> preRenderedQueue = new Queue<TTSRequest>();
+    private bool isGenerating = false;
     private bool isCurrentlyPlaying = false;
+    private Coroutine playbackCoroutine = null;
+    
+    [Serializable]
+    private class TTSRequest
+    {
+        public string text;
+        public AudioClip clip;
+        public Action onStartPlayback; // Callback when this clip starts playing
+    }
     
     public void Initialize(AudioSource source, string voice)
     {
@@ -29,35 +39,48 @@ public class NPCTTSHandler : MonoBehaviour
     /// </summary>
     public bool IsSpeaking()
     {
-        return isProcessingTTS || isCurrentlyPlaying || ttsQueue.Count > 0 || preRenderedClips.Count > 0;
+        return isGenerating || isCurrentlyPlaying || ttsQueue.Count > 0 || preRenderedQueue.Count > 0;
     }
     
     /// <summary>
     /// Add text chunk to TTS queue and start processing
     /// </summary>
-    public void EnqueueSpeech(string text)
+    public void EnqueueSpeech(string text, Action onStartPlayback = null)
     {
         if (string.IsNullOrEmpty(text)) return;
         
-        ttsQueue.Enqueue(text);
+        var request = new TTSRequest 
+        { 
+            text = text,
+            onStartPlayback = onStartPlayback
+        };
         
-        if (!isProcessingTTS)
-            StartCoroutine(ProcessTTSQueue());
+        ttsQueue.Enqueue(request);
+        
+        // Start generation immediately
+        if (!isGenerating)
+            StartCoroutine(GenerateAudioInBackground());
+        
+        // Start playback if not already playing
+        if (playbackCoroutine == null)
+            playbackCoroutine = StartCoroutine(PlayPreRenderedQueue());
     }
     
     /// <summary>
-    /// Process TTS queue sequentially
+    /// Generate audio clips in background, independent of playback
     /// </summary>
-    private IEnumerator ProcessTTSQueue()
+    private IEnumerator GenerateAudioInBackground()
     {
-        isProcessingTTS = true;
+        isGenerating = true;
         
         while (ttsQueue.Count > 0)
         {
-            string textChunk = ttsQueue.Dequeue();
+            var request = ttsQueue.Dequeue();
             
-            // Pre-render the audio clip in background
-            var ttsTask = System.Threading.Tasks.Task.Run(() => GenerateAudioData(textChunk));
+            Debug.Log($"🎵 Generating TTS audio for: \"{request.text.Substring(0, Math.Min(30, request.text.Length))}...\"");
+            
+            // Generate audio in background thread
+            var ttsTask = System.Threading.Tasks.Task.Run(() => GenerateAudioData(request.text));
             
             // Wait for generation
             while (!ttsTask.IsCompleted)
@@ -67,18 +90,58 @@ public class NPCTTSHandler : MonoBehaviour
             if (audioBytes != null && audioBytes.Length > 0)
             {
                 // Convert to AudioClip
-                AudioClip clip = CreateAudioClip(audioBytes);
+                request.clip = CreateAudioClip(audioBytes);
                 
-                // Wait for current audio to finish
-                while (isCurrentlyPlaying)
-                    yield return null;
+                // Add to pre-rendered queue (ready to play)
+                preRenderedQueue.Enqueue(request);
                 
-                // Play this clip
-                yield return StartCoroutine(PlayAudioClip(clip));
+                Debug.Log($"✅ TTS audio ready, queue size: {preRenderedQueue.Count}");
             }
         }
         
-        isProcessingTTS = false;
+        isGenerating = false;
+    }
+    
+    /// <summary>
+    /// Play pre-rendered audio clips sequentially
+    /// </summary>
+    private IEnumerator PlayPreRenderedQueue()
+    {
+        while (true)
+        {
+            // Wait for pre-rendered clips to be available
+            while (preRenderedQueue.Count == 0)
+            {
+                // Exit if nothing is generating and queue is empty
+                if (!isGenerating && ttsQueue.Count == 0)
+                {
+                    playbackCoroutine = null;
+                    yield break;
+                }
+                yield return null;
+            }
+            
+            var request = preRenderedQueue.Dequeue();
+            
+            if (request.clip != null)
+            {
+                // Trigger callback (this will show the text in UI)
+                request.onStartPlayback?.Invoke();
+                
+                // Play the audio
+                yield return StartCoroutine(PlayAudioClip(request.clip));
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Process TTS queue sequentially
+    /// </summary>
+    private IEnumerator ProcessTTSQueue()
+    {
+        // DEPRECATED: Old sequential approach
+        // Now using GenerateAudioInBackground + PlayPreRenderedQueue
+        yield break;
     }
     
     /// <summary>
@@ -173,10 +236,16 @@ sys.stdout.buffer.write(bytes(audio_data))
     public void ClearQueue()
     {
         ttsQueue.Clear();
-        preRenderedClips.Clear();
+        preRenderedQueue.Clear();
         if (audioSource != null)
             audioSource.Stop();
         
         isCurrentlyPlaying = false;
+        
+        if (playbackCoroutine != null)
+        {
+            StopCoroutine(playbackCoroutine);
+            playbackCoroutine = null;
+        }
     }
 }
