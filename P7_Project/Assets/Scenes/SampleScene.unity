@@ -2210,6 +2210,10 @@ MonoBehaviour:
       ignoringBoolParam: IsIgnoring
     npcGameObject: {fileID: 0}
   ollamaClient: {fileID: 812325951}
+  ttsHandler: {fileID: 0}
+  memory:
+    shortTermCapacity: 5
+    mediumTermCapacity: 20
   broadcastResponses: 1
   enableAutoResponse: 1
   responseDelay: 2
@@ -2217,7 +2221,7 @@ MonoBehaviour:
   userInput: {fileID: 2006649159}
   outputText: {fileID: 1197911581}
   npcNameLabel: {fileID: 409174237}
-  externalMessagesText: {fileID: 522357439}
+  memoryDisplayText: {fileID: 0}
 --- !u!4 &969207764
 Transform:
   m_ObjectHideFlags: 0
@@ -2289,6 +2293,10 @@ MonoBehaviour:
       ignoringBoolParam: IsIgnoring
     npcGameObject: {fileID: 0}
   ollamaClient: {fileID: 812325951}
+  ttsHandler: {fileID: 0}
+  memory:
+    shortTermCapacity: 5
+    mediumTermCapacity: 20
   broadcastResponses: 1
   enableAutoResponse: 1
   responseDelay: 2
@@ -2296,7 +2304,7 @@ MonoBehaviour:
   userInput: {fileID: 16006732}
   outputText: {fileID: 1077084365}
   npcNameLabel: {fileID: 661143557}
-  externalMessagesText: {fileID: 2112774813}
+  memoryDisplayText: {fileID: 0}
 --- !u!4 &1002537022
 Transform:
   m_ObjectHideFlags: 0
@@ -3986,6 +3994,56 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 1813383086212508686, guid: 932366060944a9045903b2681ecec3df, type: 3}
   m_PrefabInstance: {fileID: 921026363}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1726134541
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1726134543}
+  - component: {fileID: 1726134542}
+  m_Layer: 0
+  m_Name: DialogueManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1726134542
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1726134541}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c9db64188fdc0e8438751d8c191d782c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  currentSpeaker: 
+  lastSpeakTime: 0
+  minimumTurnGap: 1
+  totalTurns: 0
+  totalInterruptions: 0
+  queuedRequests: 0
+--- !u!4 &1726134543
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1726134541}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.49749982, y: 0.4352812, z: -8.527802}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!4 &1757847660 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 2594608769403979705, guid: 932366060944a9045903b2681ecec3df, type: 3}
@@ -4808,6 +4866,7 @@ SceneRoots:
   - {fileID: 1925231762}
   - {fileID: 812325952}
   - {fileID: 673011204}
+  - {fileID: 1726134543}
   - {fileID: 969207764}
   - {fileID: 1002537022}
   - {fileID: 1641263691}
