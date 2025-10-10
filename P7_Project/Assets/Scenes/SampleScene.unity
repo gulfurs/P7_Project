@@ -2206,6 +2206,7 @@ MonoBehaviour:
       - lean_back
       - smile
       - eye_roll
+      - idle
       focusedBoolParam: IsFocused
       ignoringBoolParam: IsIgnoring
     npcGameObject: {fileID: 0}
@@ -2214,7 +2215,6 @@ MonoBehaviour:
   memory:
     shortTermCapacity: 5
     mediumTermCapacity: 20
-  broadcastResponses: 1
   enableAutoResponse: 1
   responseDelay: 2
   responseChance: 0.8
@@ -2289,6 +2289,7 @@ MonoBehaviour:
       - lean_back
       - smile
       - eye_roll
+      - idle
       focusedBoolParam: IsFocused
       ignoringBoolParam: IsIgnoring
     npcGameObject: {fileID: 0}
@@ -2297,7 +2298,6 @@ MonoBehaviour:
   memory:
     shortTermCapacity: 5
     mediumTermCapacity: 20
-  broadcastResponses: 1
   enableAutoResponse: 1
   responseDelay: 2
   responseChance: 0.8
@@ -4027,7 +4027,6 @@ MonoBehaviour:
   lastSpeakTime: 0
   minimumTurnGap: 1
   totalTurns: 0
-  totalInterruptions: 0
   queuedRequests: 0
 --- !u!4 &1726134543
 Transform:

@@ -165,6 +165,16 @@ public class DialogueManager : MonoBehaviour
         queuedRequests = 0;
         Debug.Log("🔄 Conversation history cleared");
     }
+    
+    /// <summary>
+    /// Clear the turn queue (called when user sends new message to reset conversation)
+    /// </summary>
+    public void ClearQueue()
+    {
+        turnQueue.Clear();
+        queuedRequests = 0;
+        Debug.Log("🔄 Turn queue cleared");
+    }
 }
 
 /// <summary>

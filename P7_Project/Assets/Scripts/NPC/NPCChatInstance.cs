@@ -110,6 +110,28 @@ public class NPCChatInstance : MonoBehaviour
         var userText = userInput != null ? userInput.text : "";
         if (string.IsNullOrWhiteSpace(userText) || npcProfile == null || ollamaClient == null) return;
 
+        // Clear any queued NPC responses - user message is the new conversation point
+        if (DialogueManager.Instance != null)
+        {
+            DialogueManager.Instance.ClearQueue();
+        }
+
+        // Broadcast user message to ALL NPCs so they all hear it
+        if (NPCManager.Instance != null)
+        {
+            Debug.Log($"📢 User: \"{userText}\" (broadcasting to all NPCs)");
+            
+            foreach (var npc in NPCManager.Instance.npcInstances)
+            {
+                if (npc != null)
+                {
+                    // Add to each NPC's memory
+                    npc.memory.AddDialogueTurn("User", userText);
+                }
+            }
+        }
+
+        // Then send to this NPC to respond
         SendMessage(userText);
     }
 
@@ -212,8 +234,7 @@ public class NPCChatInstance : MonoBehaviour
             }
         }
 
-        // Store in memory
-        memory.AddDialogueTurn("User", messageText);
+        // Store NPC's response in memory (user message already stored in Send())
         memory.AddDialogueTurn(npcProfile.npcName, response.content);
         LogMemoryState();
 
