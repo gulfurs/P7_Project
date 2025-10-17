@@ -103,7 +103,7 @@ public class NPCTTSHandler : MonoBehaviour
     }
     
     /// <summary>
-    /// Play pre-rendered audio clips sequentially
+    /// Process TTS queue sequentially
     /// </summary>
     private IEnumerator PlayPreRenderedQueue()
     {
@@ -112,7 +112,6 @@ public class NPCTTSHandler : MonoBehaviour
             // Wait for pre-rendered clips to be available
             while (preRenderedQueue.Count == 0)
             {
-                // Exit if nothing is generating and queue is empty
                 if (!isGenerating && ttsQueue.Count == 0)
                 {
                     playbackCoroutine = null;
@@ -125,23 +124,10 @@ public class NPCTTSHandler : MonoBehaviour
             
             if (request.clip != null)
             {
-                // Trigger callback (this will show the text in UI)
                 request.onStartPlayback?.Invoke();
-                
-                // Play the audio
                 yield return StartCoroutine(PlayAudioClip(request.clip));
             }
         }
-    }
-    
-    /// <summary>
-    /// Process TTS queue sequentially
-    /// </summary>
-    private IEnumerator ProcessTTSQueue()
-    {
-        // DEPRECATED: Old sequential approach
-        // Now using GenerateAudioInBackground + PlayPreRenderedQueue
-        yield break;
     }
     
     /// <summary>
@@ -167,11 +153,9 @@ public class NPCTTSHandler : MonoBehaviour
         if (audioSource == null || clip == null) yield break;
         
         isCurrentlyPlaying = true;
-        
         audioSource.clip = clip;
         audioSource.Play();
         
-        // Wait for audio to finish
         while (audioSource.isPlaying)
             yield return null;
         
@@ -231,7 +215,7 @@ sys.stdout.buffer.write(bytes(audio_data))
     }
     
     /// <summary>
-    /// Clear TTS queue (useful for interruptions)
+    /// Clear TTS queue
     /// </summary>
     public void ClearQueue()
     {

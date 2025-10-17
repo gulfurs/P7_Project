@@ -26,14 +26,12 @@ public class NPCManager : MonoBehaviour
     
     void Start()
     {
-        // Register all NPC instances
+        // Find and register any NPC instances not already registered
         var foundNPCs = FindObjectsOfType<NPCChatInstance>();
         foreach (var npc in foundNPCs)
         {
             if (!npcInstances.Contains(npc))
-            {
                 npcInstances.Add(npc);
-            }
         }
     }
     
@@ -71,13 +69,11 @@ public class NPCManager : MonoBehaviour
     /// </summary>
     public List<string> GetAllNPCNames()
     {
-        List<string> names = new List<string>();
+        var names = new List<string>();
         foreach (var npc in npcInstances)
         {
             if (npc != null && npc.npcProfile != null && !string.IsNullOrEmpty(npc.npcProfile.npcName))
-            {
                 names.Add(npc.npcProfile.npcName);
-            }
         }
         return names;
     }
@@ -93,21 +89,5 @@ public class NPCManager : MonoBehaviour
         globalTTSEnabled = !globalTTSEnabled;
         Debug.Log($"Global TTS is now: {(globalTTSEnabled ? "ENABLED" : "DISABLED")}");
     }
-    
-    [ContextMenu("Disable All TTS")]
-    public void DisableAllTTS()
-    {
-        globalTTSEnabled = false;
-        Debug.Log("🔇 All TTS DISABLED for debugging");
-    }
-    
-    [ContextMenu("Enable All TTS")]
-    public void EnableAllTTS()
-    {
-        globalTTSEnabled = true;
-        Debug.Log("🔊 All TTS ENABLED");
-    }
-    
-
 }
 

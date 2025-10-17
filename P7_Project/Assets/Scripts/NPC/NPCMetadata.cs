@@ -31,7 +31,6 @@ public class NPCMetadata
         var metadata = new NPCMetadata();
         if (string.IsNullOrEmpty(json)) return metadata;
         
-        // Simple JSON parsing without external dependencies
         metadata.animatorTrigger = ExtractStringValue(json, "animatorTrigger");
         metadata.isFocused = ExtractBoolValue(json, "isFocused");
         metadata.isIgnoring = ExtractBoolValue(json, "isIgnoring");
@@ -41,10 +40,14 @@ public class NPCMetadata
     
     private static string ExtractStringValue(string json, string key)
     {
-        int keyIndex = json.IndexOf($"\"{key}\":");
+        string searchKey = $"\"{key}\"";
+        int keyIndex = json.IndexOf(searchKey, System.StringComparison.OrdinalIgnoreCase);
         if (keyIndex < 0) return "";
         
-        int startQuote = json.IndexOf("\"", keyIndex + key.Length + 3);
+        int colonPos = json.IndexOf(":", keyIndex);
+        if (colonPos < 0) return "";
+        
+        int startQuote = json.IndexOf("\"", colonPos);
         if (startQuote < 0) return "";
         
         int endQuote = json.IndexOf("\"", startQuote + 1);
@@ -53,14 +56,18 @@ public class NPCMetadata
     
     private static bool ExtractBoolValue(string json, string key)
     {
-        int keyIndex = json.IndexOf($"\"{key}\":");
+        string searchKey = $"\"{key}\"";
+        int keyIndex = json.IndexOf(searchKey, System.StringComparison.OrdinalIgnoreCase);
         if (keyIndex < 0) return false;
         
-        int valueStart = keyIndex + key.Length + 3;
-        int commaOrBrace = json.IndexOfAny(new[] { ',', '}' }, valueStart);
+        int colonPos = json.IndexOf(":", keyIndex);
+        if (colonPos < 0) return false;
         
-        string value = json.Substring(valueStart, (commaOrBrace < 0 ? json.Length : commaOrBrace) - valueStart).Trim();
-        return value.Equals("true", StringComparison.OrdinalIgnoreCase);
+        int endPos = json.IndexOfAny(new[] { ',', '}' }, colonPos);
+        if (endPos < 0) endPos = json.Length;
+        
+        string value = json.Substring(colonPos + 1, endPos - colonPos - 1).Trim();
+        return value.Equals("true", System.StringComparison.OrdinalIgnoreCase);
     }
 }
 

@@ -42,10 +42,8 @@ public class NPCMemory
     /// </summary>
     public void AddFact(string fact)
     {
-        if (string.IsNullOrEmpty(fact)) return;
-        
-        // Avoid duplicates
-        if (mediumTermMemory.Contains(fact)) return;
+        if (string.IsNullOrEmpty(fact) || mediumTermMemory.Contains(fact)) 
+            return;
         
         mediumTermMemory.Add(fact);
         
@@ -71,12 +69,11 @@ public class NPCMemory
     {
         if (shortTermMemory.Count == 0) return "";
         
-        var context = "Recent conversation:\n";
+        var context = new System.Text.StringBuilder("Recent conversation:\n");
         foreach (var turn in shortTermMemory)
-        {
-            context += $"{turn.speaker}: {turn.message}\n";
-        }
-        return context;
+            context.AppendFormat("{0}: {1}\n", turn.speaker, turn.message);
+        
+        return context.ToString();
     }
     
     /// <summary>
@@ -84,9 +81,7 @@ public class NPCMemory
     /// </summary>
     public string GetMediumTermContext()
     {
-        if (mediumTermMemory.Count == 0) return "";
-        
-        return "Things you remember:\n- " + string.Join("\n- ", mediumTermMemory);
+        return mediumTermMemory.Count == 0 ? "" : "Things you remember:\n- " + string.Join("\n- ", mediumTermMemory);
     }
     
     /// <summary>

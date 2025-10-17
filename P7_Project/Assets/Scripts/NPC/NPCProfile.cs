@@ -56,7 +56,7 @@ public class NPCProfile
         
         // Add non-verbal action metadata instructions
         fullPrompt += "\n\n=== NON-VERBAL ACTIONS ===";
-        fullPrompt += "\nInclude JSON at START: [META]{\"animatorTrigger\":\"<trigger>\",\"isFocused\":true/false,\"isIgnoring\":true/false}[/META]";
+        fullPrompt += "\nALWAYS include JSON at START: [META]{\"animatorTrigger\":\"<trigger>\",\"isFocused\":true/false,\"isIgnoring\":true/false}[/META]";
         
         if (animatorConfig != null && animatorConfig.availableTriggers.Count > 0)
         {

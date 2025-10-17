@@ -35,7 +35,6 @@ public class NPCChatInstance : MonoBehaviour
     private bool isCurrentlySpeaking = false;
     
     // Metadata parsing state
-    private NPCMetadata currentMetadata;
     private string metadataBuffer = "";
     private bool isParsingMetadata = false;
 
@@ -175,11 +174,10 @@ public class NPCChatInstance : MonoBehaviour
         
         isCurrentlySpeaking = true;
 
-        // Clear input
+        // Clear input and cancel ongoing request
         if (userInput != null && userInput.text == messageText)
             userInput.text = "";
-
-        // Cancel any ongoing request
+        
         cts?.Cancel();
         cts = new CancellationTokenSource();
 
@@ -196,7 +194,7 @@ public class NPCChatInstance : MonoBehaviour
         if (outputText) outputText.text = "";
         ResetMetadataParsing();
 
-        // Stream response (but don't display it yet if TTS is enabled)
+        // Stream response with TTS buffering
         var ttsBuffer = new StringBuilder();
         var displayBuffer = new StringBuilder();
         bool shouldStreamDisplay = !npcProfile.enableTTS || !NPCManager.Instance.globalTTSEnabled;
@@ -210,7 +208,6 @@ public class NPCChatInstance : MonoBehaviour
             cts.Token
         );
 
-        // Handle errors
         if (!string.IsNullOrEmpty(response.error))
         {
             if (outputText) outputText.text = "Error: " + response.error;
@@ -218,30 +215,23 @@ public class NPCChatInstance : MonoBehaviour
             return;
         }
 
-        // Get the full display text (without metadata tags)
+        // Process remaining TTS buffer
         string fullDisplayText = displayBuffer.ToString();
-
-        // Process remaining TTS buffer with callback to show text when playback starts
         ProcessRemainingTTS(ttsBuffer, fullDisplayText);
 
         // Wait for TTS to finish before releasing turn
         if (npcProfile.enableTTS && NPCManager.Instance.globalTTSEnabled)
         {
-            // Wait for TTS handler to finish speaking
             while (ttsHandler.IsSpeaking())
-            {
                 await System.Threading.Tasks.Task.Delay(50);
-            }
         }
 
-        // Store NPC's response in memory (user message already stored in Send())
+        // Store response and broadcast
         memory.AddDialogueTurn(npcProfile.npcName, response.content);
-        LogMemoryState();
-
-        // Broadcast to other NPCs
         if (NPCManager.Instance != null)
             NPCManager.Instance.BroadcastMessage(this, response.content);
         
+        LogMemoryState();
         FinishSpeaking();
     }
 
@@ -360,13 +350,10 @@ public class NPCChatInstance : MonoBehaviour
     /// </summary>
     private void ExecuteMetadata(NPCMetadata metadata)
     {
-        if (metadata == null) return;
+        if (metadata == null || string.IsNullOrEmpty(metadata.animatorTrigger) || npcProfile.animatorConfig == null)
+            return;
         
-        currentMetadata = metadata;
-        
-        // Trigger animation
-        if (!string.IsNullOrEmpty(metadata.animatorTrigger) && npcProfile.animatorConfig != null)
-            npcProfile.animatorConfig.TriggerAnimation(metadata.animatorTrigger);
+        npcProfile.animatorConfig.TriggerAnimation(metadata.animatorTrigger);
     }
 
     /// <summary>
@@ -461,7 +448,6 @@ public class NPCChatInstance : MonoBehaviour
 
     private void ResetMetadataParsing()
     {
-        currentMetadata = null;
         metadataBuffer = "";
         isParsingMetadata = false;
     }

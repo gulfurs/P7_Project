@@ -14,8 +14,11 @@ public class DialogueManager : MonoBehaviour
     public float lastSpeakTime = 0f;
     
     [Header("Turn Management")]
-    [Tooltip("Minimum time between NPC responses (seconds)")]
+    [Tooltip("Minimum time between any NPC responses (seconds)")]
     public float minimumTurnGap = 1.5f;
+    
+    [Tooltip("Prevent same NPC from speaking twice in a row")]
+    public int turnHistoryToCheck = 1;
     
     private readonly List<string> speakerHistory = new List<string>();
     private readonly Queue<NPCTurnRequest> turnQueue = new Queue<NPCTurnRequest>();
@@ -42,39 +45,39 @@ public class DialogueManager : MonoBehaviour
     /// </summary>
     public bool RequestTurn(string npcName, NPCChatInstance npcInstance, string messageText)
     {
-        // If someone is currently speaking, queue this request
+        // If someone is currently speaking, queue request
         if (!string.IsNullOrEmpty(currentSpeaker))
         {
-            turnQueue.Enqueue(new NPCTurnRequest
-            {
-                npcName = npcName,
-                npcInstance = npcInstance,
-                messageText = messageText,
-                timestamp = Time.time
-            });
-            queuedRequests = turnQueue.Count;
-            Debug.Log($"📋 {npcName} queued to speak ({turnQueue.Count} in queue)");
-            return false; // Turn not granted yet
+            EnqueueRequest(npcName, npcInstance, messageText);
+            return false;
         }
         
-        // Check if enough time has passed since last speaker
+        // Check minimum time gap since last speaker
         if (Time.time - lastSpeakTime < minimumTurnGap)
         {
-            Debug.Log($"⏱️ {npcName} tried to speak too soon, queuing...");
-            turnQueue.Enqueue(new NPCTurnRequest
-            {
-                npcName = npcName,
-                npcInstance = npcInstance,
-                messageText = messageText,
-                timestamp = Time.time
-            });
-            queuedRequests = turnQueue.Count;
+            EnqueueRequest(npcName, npcInstance, messageText);
             return false;
         }
         
         // Grant turn immediately
         GrantTurn(npcName);
         return true;
+    }
+    
+    /// <summary>
+    /// Add request to queue
+    /// </summary>
+    private void EnqueueRequest(string npcName, NPCChatInstance npcInstance, string messageText)
+    {
+        turnQueue.Enqueue(new NPCTurnRequest
+        {
+            npcName = npcName,
+            npcInstance = npcInstance,
+            messageText = messageText,
+            timestamp = Time.time
+        });
+        queuedRequests = turnQueue.Count;
+        Debug.Log($"📋 {npcName} queued to speak ({turnQueue.Count} in queue)");
     }
     
     /// <summary>
@@ -116,20 +119,41 @@ public class DialogueManager : MonoBehaviour
     {
         if (turnQueue.Count == 0) return;
         
-        // Get next NPC from queue
-        var nextRequest = turnQueue.Dequeue();
-        queuedRequests = turnQueue.Count;
+        // Prioritize next speaker to avoid repetition
+        NPCTurnRequest nextRequest = FindNextOptimalSpeaker();
+        if (nextRequest == null) return;
         
+        queuedRequests = turnQueue.Count;
         Debug.Log($"▶️ Processing queued request from {nextRequest.npcName}");
         
-        // Grant turn (this updates lastSpeakTime)
         GrantTurn(nextRequest.npcName);
         
-        // Trigger the NPC to actually speak
         if (nextRequest.npcInstance != null)
-        {
             nextRequest.npcInstance.ExecuteQueuedMessage(nextRequest.messageText);
+    }
+    
+    /// <summary>
+    /// Find optimal next speaker - prefers speaker different from last
+    /// </summary>
+    private NPCTurnRequest FindNextOptimalSpeaker()
+    {
+        if (turnQueue.Count == 0) return null;
+        
+        // Get last speaker(s) for diversity check
+        string lastSpeaker = speakerHistory.Count > 0 ? speakerHistory[speakerHistory.Count - 1] : "";
+        
+        // Try to find a request from someone who didn't just speak
+        foreach (var request in turnQueue)
+        {
+            if (request.npcName != lastSpeaker)
+            {
+                turnQueue.Dequeue();
+                return request;
+            }
         }
+        
+        // If all queued speakers are the same, just take the first one
+        return turnQueue.Dequeue();
     }
     
     /// <summary>
