@@ -61,6 +61,14 @@ public class NPCMemory
     {
         return new List<string>(mediumTermMemory);
     }
+
+    /// <summary>
+    /// Get current fact count without allocating
+    /// </summary>
+    public int GetFactCount()
+    {
+        return mediumTermMemory.Count;
+    }
     
     /// <summary>
     /// Get short-term memory as formatted string for prompt

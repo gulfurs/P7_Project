@@ -80,6 +80,13 @@ public class NPCAnimatorConfig
     [Header("Animator Reference")]
     public Animator animator;
     
+    [Header("Gaze Settings")]
+    public Transform gazeOrigin;
+    public Transform neutralLookTarget;
+    public Transform ignoreLookTarget;
+    [Range(0.1f, 20f)]
+    public float gazeLerpSpeed = 8f;
+    
     [Header("Available Animator Triggers")]
     [Tooltip("List of all valid animator trigger names that the LLM can use")]
     public List<string> availableTriggers = new List<string>
@@ -99,6 +106,8 @@ public class NPCAnimatorConfig
     public string ignoringBoolParam = "IsIgnoring";
     
     private AttentionState currentAttentionState = AttentionState.Idle;
+    private Transform currentLookTarget;
+    private Transform speakerLookTarget;
     
     /// <summary>
     /// Execute an animator trigger if it's in the available list
@@ -136,28 +145,29 @@ public class NPCAnimatorConfig
     /// <summary>
     /// Set the attention state of the NPC (affects animator boolean parameters)
     /// </summary>
-    public void SetAttentionState(AttentionState state)
+    public void SetAttentionState(AttentionState state, bool immediate = false)
     {
-        if (currentAttentionState == state)
-            return; // Already in this state
-        
-        currentAttentionState = state;
-        
-        // DEBUG: Log attention state changes
-        Debug.Log($"👁️ [DEBUG] Attention state changed to: {state}");
-        
+        bool stateChanged = currentAttentionState != state;
+
+        if (stateChanged)
+        {
+            currentAttentionState = state;
+            Debug.Log($"👁️ [DEBUG] Attention state changed to: {state}");
+        }
+
+        UpdateLookTarget(immediate || stateChanged);
+
         // TODO: Uncomment when ready to use actual animator
         /*
         if (animator == null)
             return;
-        
+
         // Reset all attention booleans
         if (!string.IsNullOrEmpty(focusedBoolParam))
             animator.SetBool(focusedBoolParam, false);
         if (!string.IsNullOrEmpty(ignoringBoolParam))
             animator.SetBool(ignoringBoolParam, false);
-        
-        // Set the appropriate attention state
+
         switch (state)
         {
             case AttentionState.Focused:
@@ -169,11 +179,88 @@ public class NPCAnimatorConfig
                     animator.SetBool(ignoringBoolParam, true);
                 break;
             case AttentionState.Idle:
-                // Both booleans already set to false
                 TriggerAnimation("idle");
                 break;
         }
         */
+    }
+
+    public AttentionState CurrentAttentionState => currentAttentionState;
+    public bool IsIgnoring => currentAttentionState == AttentionState.Ignoring;
+
+    public void ApplyMetadata(NPCMetadata metadata, Transform speakerTarget)
+    {
+        if (metadata == null)
+            return;
+
+        if (speakerTarget != null)
+            speakerLookTarget = speakerTarget;
+
+        AttentionState nextState = AttentionState.Idle;
+        if (metadata.isIgnoring)
+            nextState = AttentionState.Ignoring;
+        else if (metadata.isFocused)
+            nextState = AttentionState.Focused;
+
+    SetAttentionState(nextState);
+    }
+
+    public void SetSpeakerTarget(Transform target, bool immediate = false)
+    {
+        speakerLookTarget = target ?? neutralLookTarget;
+        UpdateLookTarget(immediate);
+    }
+
+    public void TickGaze(float deltaTime)
+    {
+        if (gazeOrigin == null || currentLookTarget == null)
+            return;
+
+        Vector3 toTarget = currentLookTarget.position - gazeOrigin.position;
+        if (toTarget.sqrMagnitude <= 0.0001f)
+            return;
+
+        Quaternion desiredRotation = Quaternion.LookRotation(toTarget.normalized, Vector3.up);
+
+        if (gazeLerpSpeed <= 0f)
+            gazeOrigin.rotation = desiredRotation;
+        else
+            gazeOrigin.rotation = Quaternion.Slerp(gazeOrigin.rotation, desiredRotation, deltaTime * gazeLerpSpeed);
+    }
+
+    private void UpdateLookTarget(bool immediate)
+    {
+        Transform desiredTarget = null;
+
+        switch (currentAttentionState)
+        {
+            case AttentionState.Focused:
+                desiredTarget = speakerLookTarget ?? neutralLookTarget;
+                break;
+            case AttentionState.Ignoring:
+                desiredTarget = ignoreLookTarget ?? neutralLookTarget;
+                break;
+            default:
+                desiredTarget = neutralLookTarget ?? speakerLookTarget;
+                break;
+        }
+
+        if (desiredTarget == null)
+        {
+            currentLookTarget = null;
+            return;
+        }
+
+        currentLookTarget = desiredTarget;
+
+        if (immediate && gazeOrigin != null)
+        {
+            Vector3 toTarget = currentLookTarget.position - gazeOrigin.position;
+            if (toTarget.sqrMagnitude > 0.0001f)
+            {
+                gazeOrigin.rotation = Quaternion.LookRotation(toTarget.normalized, Vector3.up);
+            }
+        }
     }
     
     /// <summary>

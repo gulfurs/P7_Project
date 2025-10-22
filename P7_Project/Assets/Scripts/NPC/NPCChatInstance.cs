@@ -22,8 +22,6 @@ public class NPCChatInstance : MonoBehaviour
 
     [Header("Chat Settings")]
     public bool enableAutoResponse = true;
-    public float responseDelay = 1f;
-    public float responseChance = 0.9f;
 
     [Header("UI")]
     public TMP_InputField userInput;
@@ -32,17 +30,38 @@ public class NPCChatInstance : MonoBehaviour
     public TMP_Text memoryDisplayText;
 
     private CancellationTokenSource cts;
-    private bool isCurrentlySpeaking = false;
-    
-    // Metadata parsing state
-    private string metadataBuffer = "";
-    private bool isParsingMetadata = false;
+    private bool isCurrentlySpeaking;
+
+    private readonly StringBuilder metadataBuffer = new StringBuilder();
+    private bool isParsingMetadata;
+
+    private const string MetadataOpenTag = "[META]";
+    private const string MetadataCloseTag = "[/META]";
+
+    private bool IsTTSEnabled =>
+        npcProfile != null &&
+        npcProfile.enableTTS &&
+        NPCManager.Instance != null &&
+        NPCManager.Instance.globalTTSEnabled;
 
     void Start()
     {
         InitializeComponents();
         RegisterWithManagers();
         SetupUI();
+    }
+
+    void Update()
+    {
+        if (npcProfile?.animatorConfig != null)
+            npcProfile.animatorConfig.TickGaze(Time.deltaTime);
+    }
+
+    void OnDestroy()
+    {
+        cts?.Cancel();
+        cts?.Dispose();
+        cts = null;
     }
 
     private void InitializeComponents()
@@ -85,11 +104,9 @@ public class NPCChatInstance : MonoBehaviour
     private void RegisterWithManagers()
     {
         // Register with NPC Manager
-        if (NPCManager.Instance != null)
-        {
-            if (!NPCManager.Instance.npcInstances.Contains(this))
-                NPCManager.Instance.npcInstances.Add(this);
-        }
+        var manager = NPCManager.Instance;
+        if (manager != null && !manager.npcInstances.Contains(this))
+            manager.npcInstances.Add(this);
     }
 
     private void SetupUI()
@@ -104,67 +121,136 @@ public class NPCChatInstance : MonoBehaviour
     /// <summary>
     /// Send message from UI input
     /// </summary>
-    public async void Send()
+    public void Send()
     {
         var userText = userInput != null ? userInput.text : "";
         if (string.IsNullOrWhiteSpace(userText) || npcProfile == null || ollamaClient == null) return;
 
-        // Clear any queued NPC responses - user message is the new conversation point
+        // Notify DialogueManager
         if (DialogueManager.Instance != null)
         {
-            DialogueManager.Instance.ClearQueue();
+            DialogueManager.Instance.OnUserAnswered(userText);
         }
 
-        // Broadcast user message to ALL NPCs so they all hear it
-        if (NPCManager.Instance != null)
+        // Broadcast user answer to ALL interviewers
+        var manager = NPCManager.Instance;
+        if (manager != null)
         {
-            Debug.Log($"📢 User: \"{userText}\" (broadcasting to all NPCs)");
+            Debug.Log($"📢 User answered: \"{userText}\"");
             
-            foreach (var npc in NPCManager.Instance.npcInstances)
+            foreach (var npc in manager.npcInstances)
             {
                 if (npc != null)
                 {
-                    // Add to each NPC's memory
                     npc.memory.AddDialogueTurn("User", userText);
+                    // Each NPC asks LLM if it should respond
+                    npc.AskLLMIfShouldRespond(userText);
                 }
             }
         }
 
-        // Then send to this NPC to respond
-        SendMessage(userText);
+        if (userInput != null)
+            userInput.text = "";
     }
-
+    
     /// <summary>
-    /// Send a message and get NPC response
+    /// Ask the LLM itself whether this NPC should ask a follow-up
     /// </summary>
-    public async void SendMessage(string messageText)
+    public async void AskLLMIfShouldRespond(string userAnswer)
     {
-        if (string.IsNullOrWhiteSpace(messageText) || npcProfile == null || ollamaClient == null)
+        if (!enableAutoResponse || isCurrentlySpeaking)
             return;
-
-        // Request turn from dialogue manager
+        
+        // Build decision prompt
+        string decisionPrompt = BuildTurnDecisionPrompt(userAnswer);
+        
+        var messages = new List<OllamaChatClient.ChatMessage>
+        {
+            new OllamaChatClient.ChatMessage { role = "system", content = decisionPrompt },
+            new OllamaChatClient.ChatMessage { role = "user", content = userAnswer }
+        };
+        
+        // Ask LLM for decision (should be quick, low temp)
+        var response = await ollamaClient.SendChatAsync(
+            messages,
+            temperature: 0.3f, // Low temp for consistent decisions
+            repeatPenalty: 1.0f,
+            null,
+            null,
+            default
+        );
+        
+        if (!string.IsNullOrEmpty(response.error))
+            return;
+        
+        // Parse LLM decision
+        string decision = response.content.Trim().ToLower();
+        bool shouldRespond = decision.Contains("yes") || decision.Contains("respond");
+        
+        Debug.Log($"🤖 {npcProfile.npcName} LLM decision: {decision.Substring(0, Mathf.Min(50, decision.Length))}... → {(shouldRespond ? "RESPOND" : "PASS")}");
+        
+        // Check if we should force a response (second NPC if first passed)
         if (DialogueManager.Instance != null)
         {
-            bool turnGranted = DialogueManager.Instance.RequestTurn(npcProfile.npcName, this, messageText);
-            if (!turnGranted)
+            shouldRespond = DialogueManager.Instance.RecordDecision(npcProfile.npcName, shouldRespond);
+        }
+        
+        if (shouldRespond)
+        {
+            // Request turn and generate actual response
+            if (DialogueManager.Instance != null && DialogueManager.Instance.RequestTurn(npcProfile.npcName))
             {
-                // Queued for later, will be called via ExecuteQueuedMessage
-                return;
+                await ExecuteSpeech($"Ask a relevant follow-up question to: {userAnswer}");
             }
         }
-
-        // Turn granted, execute immediately
-        await ExecuteSpeech(messageText);
     }
     
     /// <summary>
-    /// Execute a queued message (called by DialogueManager)
+    /// Build prompt for LLM to decide whether to respond
     /// </summary>
-    public async void ExecuteQueuedMessage(string messageText)
+    private string BuildTurnDecisionPrompt(string userAnswer)
     {
-        await ExecuteSpeech(messageText);
+        var promptBuilder = new StringBuilder()
+            .Append("You are ")
+            .Append(npcProfile.npcName)
+            .Append(". ")
+            .Append(npcProfile.systemPrompt)
+            .Append("\n\n=== TURN-TAKING DECISION ===\n")
+            .Append("The candidate just answered. Decide if YOU should ask the next follow-up question.\n\n")
+            .Append("Consider:\n")
+            .Append("- Your role and expertise: ")
+            .Append(npcProfile.personalityTraits)
+            .Append('\n')
+            .Append("- Is this answer related to YOUR area of interviewing?\n")
+            .Append("- Do you have a relevant follow-up question?\n")
+            .Append("- Should you let your co-interviewer ask instead?\n\n");
+
+        if (DialogueManager.Instance != null)
+        {
+            bool wasLast = DialogueManager.Instance.WasLastSpeaker(npcProfile.npcName);
+            string turnHistory = DialogueManager.Instance.GetTurnHistory();
+            
+            if (!string.IsNullOrEmpty(turnHistory))
+                promptBuilder.Append("Recent turn order: ").Append(turnHistory).Append('\n');
+            
+            if (wasLast)
+                promptBuilder.Append("⚠️ You just asked the last question - consider letting your co-interviewer take a turn.\n\n");
+        }
+        
+        // Add conversation memory
+        string recentConvo = memory.GetShortTermContext();
+        if (!string.IsNullOrEmpty(recentConvo))
+            promptBuilder.Append("Recent conversation:\n").Append(recentConvo).Append("\n\n");
+
+        promptBuilder
+            .Append("Respond with ONLY:\n")
+            .Append("'YES' if you should ask a follow-up question\n")
+            .Append("'NO' if your co-interviewer should ask instead\n")
+            .Append("\nBe brief - just YES or NO with short reason.");
+
+        return promptBuilder.ToString();
     }
-    
+
     /// <summary>
     /// Internal method to execute the actual speech
     /// </summary>
@@ -174,12 +260,9 @@ public class NPCChatInstance : MonoBehaviour
         
         isCurrentlySpeaking = true;
 
-        // Clear input and cancel ongoing request
-        if (userInput != null && userInput.text == messageText)
-            userInput.text = "";
-        
-        cts?.Cancel();
-        cts = new CancellationTokenSource();
+    cts?.Cancel();
+    cts?.Dispose();
+    cts = new CancellationTokenSource();
 
         // Build prompt with memory
         string fullSystemPrompt = BuildPromptWithMemory();
@@ -197,14 +280,15 @@ public class NPCChatInstance : MonoBehaviour
         // Stream response with TTS buffering
         var ttsBuffer = new StringBuilder();
         var displayBuffer = new StringBuilder();
-        bool shouldStreamDisplay = !npcProfile.enableTTS || !NPCManager.Instance.globalTTSEnabled;
+        bool ttsActive = IsTTSEnabled;
+        bool shouldStreamDisplay = !ttsActive;
         
         var response = await ollamaClient.SendChatAsync(
             messages,
             npcProfile.temperature,
             npcProfile.repeatPenalty,
             null,
-            (token) => ProcessToken(token, ttsBuffer, displayBuffer, shouldStreamDisplay),
+            token => ProcessToken(token, ttsBuffer, displayBuffer, ttsActive, shouldStreamDisplay),
             cts.Token
         );
 
@@ -217,19 +301,17 @@ public class NPCChatInstance : MonoBehaviour
 
         // Process remaining TTS buffer
         string fullDisplayText = displayBuffer.ToString();
-        ProcessRemainingTTS(ttsBuffer, fullDisplayText);
+        ProcessRemainingTTS(ttsBuffer, fullDisplayText, ttsActive);
 
         // Wait for TTS to finish before releasing turn
-        if (npcProfile.enableTTS && NPCManager.Instance.globalTTSEnabled)
+        if (ttsActive)
         {
             while (ttsHandler.IsSpeaking())
                 await System.Threading.Tasks.Task.Delay(50);
         }
 
-        // Store response and broadcast
+        // Store response - DON'T broadcast to other NPCs (they don't respond to each other)
         memory.AddDialogueTurn(npcProfile.npcName, response.content);
-        if (NPCManager.Instance != null)
-            NPCManager.Instance.BroadcastMessage(this, response.content);
         
         LogMemoryState();
         FinishSpeaking();
@@ -240,109 +322,160 @@ public class NPCChatInstance : MonoBehaviour
     /// </summary>
     private string BuildPromptWithMemory()
     {
-        string prompt = npcProfile.GetFullSystemPrompt();
-        
-        // Add medium-term memory (facts)
+        var promptBuilder = new StringBuilder(npcProfile.GetFullSystemPrompt());
+
         string mediumTermContext = memory.GetMediumTermContext();
         if (!string.IsNullOrEmpty(mediumTermContext))
-            prompt += "\n\n" + mediumTermContext;
-        
-        // Add short-term memory (recent dialogue)
+            promptBuilder.Append("\n\n").Append(mediumTermContext);
+
         string shortTermContext = memory.GetShortTermContext();
         if (!string.IsNullOrEmpty(shortTermContext))
-            prompt += "\n\n" + shortTermContext;
-        
-        return prompt;
+            promptBuilder.Append("\n\n").Append(shortTermContext);
+
+        return promptBuilder.ToString();
     }
 
     /// <summary>
     /// Process incoming tokens for metadata and TTS
     /// </summary>
-    private void ProcessToken(string token, StringBuilder ttsBuffer, StringBuilder displayBuffer, bool shouldStreamDisplay = true)
+    private void ProcessToken(
+        string token,
+        StringBuilder ttsBuffer,
+        StringBuilder displayBuffer,
+        bool ttsActive,
+        bool shouldStreamDisplay)
     {
         foreach (char c in token)
         {
-            // Building potential [META] tag
-            if (!isParsingMetadata && metadataBuffer.Length > 0 && metadataBuffer.Length < 6)
-            {
-                metadataBuffer += c;
-                
-                if (metadataBuffer == "[META]")
-                {
-                    // Found complete tag
-                    isParsingMetadata = true;
-                    metadataBuffer = "";
-                }
-                else if (!"[META]".StartsWith(metadataBuffer))
-                {
-                    // Not a metadata tag - flush buffer and current char
-                    string bufferContent = metadataBuffer;
-                    metadataBuffer = "";
-                    
-                    // Add all buffered content to output
-                    displayBuffer.Append(bufferContent);
-                    if (npcProfile.enableTTS && NPCManager.Instance.globalTTSEnabled)
-                        ttsBuffer.Append(bufferContent);
-                }
-                // Else: still building [META], wait for more chars
+            if (HandleMetadataChar(c, displayBuffer, ttsBuffer, ttsActive))
                 continue;
-            }
-            
-            // Check if this char starts a potential [META] tag
-            if (!isParsingMetadata && metadataBuffer.Length == 0 && c == '[')
-            {
-                metadataBuffer = "[";
-                continue;
-            }
-            
-            // Parsing metadata content
-            if (isParsingMetadata)
-            {
-                metadataBuffer += c;
-                
-                if (metadataBuffer.EndsWith("[/META]"))
-                {
-                    string jsonContent = metadataBuffer.Substring(0, metadataBuffer.Length - 7);
-                    ExecuteMetadata(NPCMetadata.ParseFromJson(jsonContent));
-                    
-                    isParsingMetadata = false;
-                    metadataBuffer = "";
-                }
-                continue;
-            }
-            
-            // Normal dialogue text
+
             displayBuffer.Append(c);
-            
-            // TTS processing
-            if (npcProfile.enableTTS && NPCManager.Instance.globalTTSEnabled)
+
+            if (ttsActive)
+                HandleTTSChar(c, ttsBuffer, displayBuffer);
+        }
+
+        if (shouldStreamDisplay && outputText)
+            outputText.text = displayBuffer.ToString();
+    }
+
+    private bool HandleMetadataChar(
+        char c,
+        StringBuilder displayBuffer,
+        StringBuilder ttsBuffer,
+        bool ttsActive)
+    {
+        if (!isParsingMetadata)
+        {
+            if (metadataBuffer.Length > 0)
             {
-                ttsBuffer.Append(c);
-                
-                // Process on sentence endings
-                if (c == '.' || c == '!' || c == '?' || (ttsBuffer.Length > 60 && c == ','))
+                int matchIndex = metadataBuffer.Length;
+                if (matchIndex < MetadataOpenTag.Length && MetadataOpenTag[matchIndex] == c)
                 {
-                    string chunk = ttsBuffer.ToString().Trim();
-                    if (chunk.Length > 0)
+                    metadataBuffer.Append(c);
+                    if (metadataBuffer.Length == MetadataOpenTag.Length)
                     {
-                        // Store current display text to show when this chunk plays
-                        string currentDisplayText = displayBuffer.ToString();
-                        ttsHandler.EnqueueSpeech(chunk, () => 
-                        {
-                            if (outputText && !shouldStreamDisplay)
-                            {
-                                outputText.text = currentDisplayText;
-                            }
-                        });
-                        ttsBuffer.Clear();
+                        isParsingMetadata = true;
+                        metadataBuffer.Clear();
                     }
+                    return true;
                 }
+
+                FlushMetadataBuffer(displayBuffer, ttsBuffer, ttsActive);
+                metadataBuffer.Clear();
+                // Allow current char to be processed normally
+            }
+
+            if (c == MetadataOpenTag[0])
+            {
+                metadataBuffer.Append(c);
+                return true;
             }
         }
-        
-        // Update UI only if streaming display is enabled (no TTS or TTS disabled)
-        if (shouldStreamDisplay && outputText) 
-            outputText.text = displayBuffer.ToString();
+
+        if (isParsingMetadata)
+        {
+            metadataBuffer.Append(c);
+
+            if (EndsWith(metadataBuffer, MetadataCloseTag))
+            {
+                int jsonLength = metadataBuffer.Length - MetadataCloseTag.Length;
+                string jsonContent = metadataBuffer.ToString(0, jsonLength);
+                ExecuteMetadata(NPCMetadata.ParseFromJson(jsonContent));
+
+                metadataBuffer.Clear();
+                isParsingMetadata = false;
+            }
+            return true;
+        }
+
+        return false;
+    }
+
+    private void FlushMetadataBuffer(
+        StringBuilder displayBuffer,
+        StringBuilder ttsBuffer,
+        bool ttsActive)
+    {
+        if (metadataBuffer.Length == 0)
+            return;
+
+        int length = metadataBuffer.Length;
+        for (int i = 0; i < length; i++)
+        {
+            char bufferedChar = metadataBuffer[i];
+            displayBuffer.Append(bufferedChar);
+
+            if (ttsActive)
+                HandleTTSChar(bufferedChar, ttsBuffer, displayBuffer);
+        }
+    }
+
+    private void HandleTTSChar(
+        char c,
+        StringBuilder ttsBuffer,
+        StringBuilder displayBuffer)
+    {
+        ttsBuffer.Append(c);
+
+        bool isSentenceEnding = c == '.' || c == '!' || c == '?';
+        bool isLongClauseBreak = c == ',' && ttsBuffer.Length > 60;
+
+        if (!isSentenceEnding && !isLongClauseBreak)
+            return;
+
+        string chunk = ttsBuffer.ToString().Trim();
+        if (chunk.Length == 0)
+            return;
+
+        string displaySnapshot = displayBuffer.ToString();
+        EnqueueTTSChunk(chunk, displaySnapshot);
+        ttsBuffer.Clear();
+    }
+
+    private void EnqueueTTSChunk(string chunk, string displaySnapshot)
+    {
+        ttsHandler.EnqueueSpeech(chunk, () =>
+        {
+            if (outputText)
+                outputText.text = displaySnapshot;
+        });
+    }
+
+    private static bool EndsWith(StringBuilder builder, string value)
+    {
+        if (builder.Length < value.Length)
+            return false;
+
+        int start = builder.Length - value.Length;
+        for (int i = 0; i < value.Length; i++)
+        {
+            if (builder[start + i] != value[i])
+                return false;
+        }
+
+        return true;
     }
 
     /// <summary>
@@ -350,92 +483,58 @@ public class NPCChatInstance : MonoBehaviour
     /// </summary>
     private void ExecuteMetadata(NPCMetadata metadata)
     {
-        if (metadata == null || string.IsNullOrEmpty(metadata.animatorTrigger) || npcProfile.animatorConfig == null)
+        if (metadata == null || npcProfile.animatorConfig == null)
             return;
         
-        npcProfile.animatorConfig.TriggerAnimation(metadata.animatorTrigger);
+        if (!string.IsNullOrEmpty(metadata.animatorTrigger))
+            npcProfile.animatorConfig.TriggerAnimation(metadata.animatorTrigger);
+
+        string currentSpeaker = DialogueManager.Instance != null ? DialogueManager.Instance.currentSpeaker : string.Empty;
+        bool isSelfSpeaking = !string.IsNullOrEmpty(currentSpeaker) && currentSpeaker == npcProfile.npcName;
+        Transform focusTarget = null;
+
+        var manager = NPCManager.Instance;
+        if (manager != null)
+        {
+            focusTarget = isSelfSpeaking
+                ? manager.GetLookTargetForSpeaker("User")
+                : manager.GetLookTargetForSpeaker(currentSpeaker);
+
+            if (focusTarget == null && npcProfile?.animatorConfig != null)
+                focusTarget = npcProfile.animatorConfig.neutralLookTarget;
+        }
+
+        npcProfile.animatorConfig.ApplyMetadata(metadata, focusTarget);
     }
 
     /// <summary>
     /// Process remaining TTS buffer after response completes
     /// </summary>
-    private void ProcessRemainingTTS(StringBuilder ttsBuffer, string fullDisplayText)
+    private void ProcessRemainingTTS(StringBuilder ttsBuffer, string fullDisplayText, bool ttsActive)
     {
-        if (npcProfile.enableTTS && NPCManager.Instance.globalTTSEnabled && ttsBuffer.Length > 0)
+        if (ttsActive && ttsBuffer.Length > 0)
         {
             string chunk = ttsBuffer.ToString().Trim();
             if (chunk.Length > 0)
             {
-                // Enqueue with callback to display text when playback starts
-                ttsHandler.EnqueueSpeech(chunk, () => 
-                {
-                    if (outputText) 
-                    {
-                        outputText.text = fullDisplayText;
-                        Debug.Log($"👁️ [{npcProfile.npcName}] Now showing text: \"{fullDisplayText.Substring(0, Math.Min(30, fullDisplayText.Length))}...\"");
-                    }
-                });
+                EnqueueTTSChunk(chunk, fullDisplayText);
+                ttsBuffer.Clear();
             }
         }
-        else if (!npcProfile.enableTTS || !NPCManager.Instance.globalTTSEnabled)
+        else if (!ttsActive && outputText)
         {
-            // No TTS - show text immediately
-            if (outputText) outputText.text = fullDisplayText;
+            outputText.text = fullDisplayText;
         }
     }
 
     /// <summary>
-    /// Receive message from another NPC
+    /// Receive message from another NPC - INTERVIEWERS DON'T RESPOND TO EACH OTHER
     /// </summary>
     public void ReceiveExternalMessage(string senderName, string message)
     {
         memory.AddDialogueTurn(senderName, message);
-        
-        Debug.Log($"📨 [{npcProfile.npcName}] Received message from {senderName}");
-        
-        // Auto-respond logic - simulate natural conversation
-        if (!enableAutoResponse)
-        {
-            Debug.Log($"⏸️ [{npcProfile.npcName}] Auto-response disabled");
-            return;
-        }
-        
-        if (isCurrentlySpeaking)
-        {
-            Debug.Log($"⏸️ [{npcProfile.npcName}] Currently speaking, won't respond");
-            return;
-        }
-        
-        if (UnityEngine.Random.value >= responseChance)
-        {
-            Debug.Log($"⏸️ [{npcProfile.npcName}] Random check failed ({responseChance * 100}% chance)");
-            return;
-        }
-        
-        // Don't respond if just spoke
-        if (DialogueManager.Instance != null && DialogueManager.Instance.HasSpokeRecently(npcProfile.npcName))
-        {
-            Debug.Log($"⏸️ [{npcProfile.npcName}] Was last speaker, skipping turn");
-            return;
-        }
-        
-        // Queue response with slight delay for natural conversation
-        float delay = responseDelay + UnityEngine.Random.Range(0f, 0.5f);
-        Debug.Log($"⏰ [{npcProfile.npcName}] Will respond in {delay:F2}s");
-        Invoke(nameof(AutoRespond), delay);
-    }
-    
-    private void AutoRespond()
-    {
-        if (!isCurrentlySpeaking)
-        {
-            var lastTurn = memory.GetLastTurn();
-            if (lastTurn != null)
-            {
-                Debug.Log($"💬 {npcProfile.npcName} responding to {lastTurn.speaker}");
-                SendMessage($"Respond naturally to {lastTurn.speaker}: {lastTurn.message}");
-            }
-        }
+        Debug.Log($"📨 [{npcProfile.npcName}] Heard {senderName} (not responding - interviewer mode)");
+        // Interviewers don't respond to each other, only to user
     }
 
     /// <summary>
@@ -448,7 +547,7 @@ public class NPCChatInstance : MonoBehaviour
 
     private void ResetMetadataParsing()
     {
-        metadataBuffer = "";
+        metadataBuffer.Clear();
         isParsingMetadata = false;
     }
 
@@ -460,26 +559,40 @@ public class NPCChatInstance : MonoBehaviour
             DialogueManager.Instance.ReleaseTurn(npcProfile.npcName);
     }
 
+    public void OnSpeakerChanged(string speakerName)
+    {
+        if (npcProfile?.animatorConfig == null)
+            return;
+
+        Transform target = null;
+        var manager = NPCManager.Instance;
+        if (manager != null)
+        {
+            if (string.IsNullOrEmpty(speakerName))
+                target = npcProfile?.animatorConfig?.neutralLookTarget;
+            else if (speakerName == npcProfile.npcName)
+                target = manager.GetLookTargetForSpeaker("User");
+            else
+                target = manager.GetLookTargetForSpeaker(speakerName);
+        }
+
+        if (target == null && npcProfile?.animatorConfig != null)
+            target = npcProfile.animatorConfig.neutralLookTarget;
+
+        bool immediate = !string.IsNullOrEmpty(speakerName) && speakerName == npcProfile.npcName;
+        npcProfile.animatorConfig.SetSpeakerTarget(target, immediate);
+    }
+
     private void LogMemoryState()
     {
-        Debug.Log($"🧠 [{npcProfile.npcName}] Short-term memory: {memory.shortTermCapacity} turns");
-        
-        var facts = memory.GetAllFacts();
-        if (facts.Count > 0)
-        {
-            Debug.Log($"💭 [{npcProfile.npcName}] Medium-term facts ({facts.Count}):");
-            foreach (var fact in facts)
-            {
-                Debug.Log($"   • {fact}");
-            }
-        }
-        
+        int factCount = memory.GetFactCount();
+        Debug.Log($"🧠 [{npcProfile.npcName}] Memory updated (short-term cap {memory.shortTermCapacity}, facts {factCount}).");
+
         // Update UI if available
         if (memoryDisplayText != null)
         {
             string display = memory.GetShortTermContext();
-            if (!string.IsNullOrEmpty(display))
-                memoryDisplayText.text = display;
+            memoryDisplayText.text = string.IsNullOrEmpty(display) ? string.Empty : display;
         }
     }
 
@@ -488,6 +601,9 @@ public class NPCChatInstance : MonoBehaviour
     {
         memory.ClearAll();
         Debug.Log($"🔄 [{npcProfile.npcName}] Memory cleared");
+
+        if (memoryDisplayText != null)
+            memoryDisplayText.text = string.Empty;
     }
     
     [ContextMenu("Show Memory")]

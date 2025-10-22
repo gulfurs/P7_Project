@@ -8,6 +8,9 @@ public class NPCManager : MonoBehaviour
     
     [Header("Global Settings")]
     public bool globalTTSEnabled = true; // Master TTS switch for debugging
+
+    [Header("Shared Gaze Reference")]
+    public Transform userTransform;
     
     public static NPCManager Instance { get; private set; }
     
@@ -34,6 +37,28 @@ public class NPCManager : MonoBehaviour
                 npcInstances.Add(npc);
         }
     }
+
+    public Transform GetLookTargetForSpeaker(string speakerName)
+    {
+        if (speakerName.Equals("User", System.StringComparison.OrdinalIgnoreCase))
+            return userTransform;
+
+        foreach (var npc in npcInstances)
+        {
+            if (npc == null || npc.npcProfile == null)
+                continue;
+
+            if (npc.npcProfile.npcName == speakerName)
+            {
+                if (npc.npcProfile.npcGameObject != null)
+                    return npc.npcProfile.npcGameObject.transform;
+
+                return npc.transform;
+            }
+        }
+
+        return null;
+    }
     
     /// <summary>
     /// Broadcast a message from one NPC to all other NPCs
@@ -46,6 +71,14 @@ public class NPCManager : MonoBehaviour
             {
                 npc.ReceiveExternalMessage(sender.npcProfile.npcName, message);
             }
+        }
+    }
+
+    public void NotifySpeakerChanged(string speakerName)
+    {
+        foreach (var npc in npcInstances)
+        {
+            npc?.OnSpeakerChanged(speakerName);
         }
     }
     

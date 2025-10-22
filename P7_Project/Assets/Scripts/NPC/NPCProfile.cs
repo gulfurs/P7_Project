@@ -44,39 +44,32 @@ public class NPCProfile
         if (!string.IsNullOrEmpty(personalityTraits))
             fullPrompt += "\n\nPersonality: " + personalityTraits;
         
-        // Add interview-specific guidelines
-        fullPrompt += "\n\n=== INTERVIEW GUIDELINES ===";
+        fullPrompt += "\n\n=== INTERVIEW DYNAMICS ===";
+        fullPrompt += "\nMulti-party interview: You, your co-interviewer, candidate.";
         fullPrompt += "\n- Stay professional and realistic; speak like a human interviewer";
-        fullPrompt += "\n- Ask one question at a time. Wait for their answer before moving on";
-        fullPrompt += "\n- Keep answers under 50 words unless asking complex behavioral questions";
-        fullPrompt += "\n- Use natural probing follow-ups like: “Can you elaborate?”, “What was the impact?”, “Why did you take that approach?";
-        fullPrompt += "\n- Reference what the candidate or co-interviewer said naturally";
+        fullPrompt += "\n- ONE question at a time, keep under 50 words";
+        fullPrompt += "\n- Use YOUR expertise to decide topic relevance";
         fullPrompt += "\n- Always Stay in character, while always remaining professional and respectful";
-        fullPrompt += "\n- Build on your co-interviewers questions, NEVER interrupt them. Add to their questions rather than repeating them";
+        fullPrompt += "\n- Build naturally, don't repeat co-interviewer";
         
-        // Add non-verbal action metadata instructions
-        fullPrompt += "\n\n=== NON-VERBAL ACTIONS ===";
+        fullPrompt += "\n\n=== NONVERBAL REACTIONS ===";
         fullPrompt += "\nALWAYS include JSON at START: [META]{\"animatorTrigger\":\"<trigger>\",\"isFocused\":true/false,\"isIgnoring\":true/false}[/META]";
-        
+
         if (animatorConfig != null && animatorConfig.availableTriggers.Count > 0)
         {
-            fullPrompt += "\nTriggers: " + animatorConfig.GetTriggerListForPrompt();
-            fullPrompt += "\n  • nod=agree/encouraged, shake_head=concerned/skeptical";
-            fullPrompt += "\n  • smile=impressed, eye_roll=red flag detected";
-            fullPrompt += "\n  • lean_forward=interested, lean_back=evaluating";
-            fullPrompt += "\n  • idle=neutral professional listening";
+            fullPrompt += "\nActions: " + animatorConfig.GetTriggerListForPrompt();
+            fullPrompt += "\n- 'nod'=agree, 'shake_head'=skeptical, 'smile'=impressed";
+            fullPrompt += "\n- 'lean_forward'=interested, 'lean_back'=evaluating, 'idle'=neutral";
+            fullPrompt += "\nisFocused=true if relevant, false if weak/off-topic";
+            fullPrompt += "\n- When isFocused=true, maintain eye contact with whoever is currently speaking";
+            fullPrompt += "\n- When isIgnoring=true, glance away or focus on notes instead of the speaker";
         }
         
         fullPrompt += "\nAttention States (Interview Context):";
         fullPrompt += "\n  • isFocused=true: Actively listening/evaluating";
         fullPrompt += "\n  • isIgnoring=true: Answer is weak/off-topic, losing interest";
         fullPrompt += "\n  • Both false: Neutral listening";
-        
-        fullPrompt += "\nInterview Examples:";
-        fullPrompt += "\n  Good answer: [META]{\"animatorTrigger\":\"nod\",\"isFocused\":true,\"isIgnoring\":false}[/META]That's a solid example.";
-        fullPrompt += "\n  Vague answer: [META]{\"animatorTrigger\":\"lean_forward\",\"isFocused\":true,\"isIgnoring\":false}[/META]Can you be more specific about your role?";
-        fullPrompt += "\n  Red flag: [META]{\"animatorTrigger\":\"lean_back\",\"isFocused\":false,\"isIgnoring\":false}[/META]I see. Let's move on.";
-            
+
         return fullPrompt;
     }
 }
