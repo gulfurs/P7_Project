@@ -126,20 +126,20 @@ public class NPCAnimatorConfig
         
         // DEBUG: Just log the animation trigger instead of executing it
         Debug.Log($"🎭 [DEBUG] Animation trigger requested: {triggerName}");
-        return true;
+        //return true;
         
         // TODO: Uncomment when ready to use actual animator
-        /*
+        
         if (animator == null)
         {
             Debug.LogWarning("Animator not assigned!");
             return false;
         }
         
-        animator.SetTrigger(triggerName);
+        animator.Play(triggerName, 2);
         Debug.Log($"✓ Triggered animation: {triggerName}");
         return true;
-        */
+        
     }
     
     /// <summary>
