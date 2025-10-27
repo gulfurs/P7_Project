@@ -215,38 +215,8 @@ public class NPCChatInstance : MonoBehaviour
             .Append(npcProfile.npcName)
             .Append(". ")
             .Append(npcProfile.systemPrompt)
-            .Append("\n\n=== TURN-TAKING DECISION ===\n")
-            .Append("The candidate just answered. Decide if YOU should ask the next follow-up question.\n\n")
-            .Append("Consider:\n")
-            .Append("- Your role and expertise: ")
-            .Append(npcProfile.personalityTraits)
-            .Append('\n')
-            .Append("- Is this answer related to YOUR area of interviewing?\n")
-            .Append("- Do you have a relevant follow-up question?\n")
-            .Append("- Should you let your co-interviewer ask instead?\n\n");
-
-        if (DialogueManager.Instance != null)
-        {
-            bool wasLast = DialogueManager.Instance.WasLastSpeaker(npcProfile.npcName);
-            string turnHistory = DialogueManager.Instance.GetTurnHistory();
-            
-            if (!string.IsNullOrEmpty(turnHistory))
-                promptBuilder.Append("Recent turn order: ").Append(turnHistory).Append('\n');
-            
-            if (wasLast)
-                promptBuilder.Append("⚠️ You just asked the last question - consider letting your co-interviewer take a turn.\n\n");
-        }
-        
-        // Add conversation memory
-        string recentConvo = memory.GetShortTermContext();
-        if (!string.IsNullOrEmpty(recentConvo))
-            promptBuilder.Append("Recent conversation:\n").Append(recentConvo).Append("\n\n");
-
-        promptBuilder
-            .Append("Respond with ONLY:\n")
-            .Append("'YES' if you should ask a follow-up question\n")
-            .Append("'NO' if your co-interviewer should ask instead\n")
-            .Append("\nBe brief - just YES or NO with short reason.");
+            .Append("\n\nCandidate said: \"").Append(userAnswer).Append("\"\n")
+            .Append("Do you have a relevant follow-up? YES or NO only.");
 
         return promptBuilder.ToString();
     }
@@ -303,14 +273,7 @@ public class NPCChatInstance : MonoBehaviour
         string fullDisplayText = displayBuffer.ToString();
         ProcessRemainingTTS(ttsBuffer, fullDisplayText, ttsActive);
 
-        // Wait for TTS to finish before releasing turn
-        if (ttsActive)
-        {
-            while (ttsHandler.IsSpeaking())
-                await System.Threading.Tasks.Task.Delay(50);
-        }
-
-        // Store response - DON'T broadcast to other NPCs (they don't respond to each other)
+        // Store response immediately, don't wait for TTS
         memory.AddDialogueTurn(npcProfile.npcName, response.content);
         
         LogMemoryState();
