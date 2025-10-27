@@ -28,6 +28,45 @@ public class NPCTTSHandler : MonoBehaviour
         public Action onStartPlayback; // Callback when this clip starts playing
     }
     
+    /// <summary>
+    /// Split response into TTS chunks at sentence boundaries
+    /// </summary>
+    public void ProcessResponseForTTS(string displayText)
+    {
+        if (string.IsNullOrEmpty(displayText)) return;
+        
+        var chunks = new System.Collections.Generic.List<string>();
+        var currentChunk = new System.Text.StringBuilder();
+        
+        foreach (char c in displayText)
+        {
+            currentChunk.Append(c);
+            
+            bool isSentenceEnding = c == '.' || c == '!' || c == '?';
+            bool isLongClause = c == ',' && currentChunk.Length > 60;
+            
+            if (isSentenceEnding || isLongClause)
+            {
+                string chunk = currentChunk.ToString().Trim();
+                if (chunk.Length > 0)
+                    chunks.Add(chunk);
+                currentChunk.Clear();
+            }
+        }
+        
+        // Add remaining text
+        if (currentChunk.Length > 0)
+        {
+            string chunk = currentChunk.ToString().Trim();
+            if (chunk.Length > 0)
+                chunks.Add(chunk);
+        }
+        
+        // Enqueue all chunks
+        foreach (var chunk in chunks)
+            EnqueueSpeech(chunk, null);
+    }
+    
     public void Initialize(AudioSource source, string voice)
     {
         audioSource = source;

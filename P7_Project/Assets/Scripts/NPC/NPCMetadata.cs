@@ -22,6 +22,38 @@ public class NPCMetadata
     public bool isFocused = false;
     public bool isIgnoring = false;
     
+    private const string MetadataOpenTag = "[META]";
+    private const string MetadataCloseTag = "[/META]";
+    
+    /// <summary>
+    /// Extract metadata and clean display text from LLM response
+    /// </summary>
+    public static (NPCMetadata metadata, string displayText) ProcessResponse(string response)
+    {
+        var metadata = new NPCMetadata();
+        var displayText = new System.Text.StringBuilder();
+        
+        int metaStart = response.IndexOf(MetadataOpenTag);
+        int metaEnd = response.IndexOf(MetadataCloseTag);
+        
+        if (metaStart >= 0 && metaEnd > metaStart)
+        {
+            int jsonStart = metaStart + MetadataOpenTag.Length;
+            string json = response.Substring(jsonStart, metaEnd - jsonStart);
+            metadata = ParseFromJson(json);
+            
+            // Add text before and after metadata
+            displayText.Append(response.Substring(0, metaStart));
+            displayText.Append(response.Substring(metaEnd + MetadataCloseTag.Length));
+        }
+        else
+        {
+            displayText.Append(response);
+        }
+        
+        return (metadata, displayText.ToString());
+    }
+    
     /// <summary>
     /// Parse JSON metadata from LLM response
     /// Format: {"animatorTrigger": "nod", "isFocused": true, "isIgnoring": false}
