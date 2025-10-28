@@ -24,34 +24,76 @@ public class NPCMetadata
     
     private const string MetadataOpenTag = "[META]";
     private const string MetadataCloseTag = "[/META]";
-    
+
     /// <summary>
-    /// Extract metadata and clean display text from LLM response
+    /// Extract metadata and clean display text from LLM response.
+    /// Enforces that metadata must appear at the very start of the response.
+    /// Returns default metadata if parsing fails.
     /// </summary>
     public static (NPCMetadata metadata, string displayText) ProcessResponse(string response)
     {
         var metadata = new NPCMetadata();
-        var displayText = new System.Text.StringBuilder();
-        
-        int metaStart = response.IndexOf(MetadataOpenTag);
-        int metaEnd = response.IndexOf(MetadataCloseTag);
-        
-        if (metaStart >= 0 && metaEnd > metaStart)
+        if (string.IsNullOrEmpty(response))
+            return (metadata, string.Empty);
+
+        response = response.TrimStart(); // allow leading whitespace
+
+        // Metadata must be at the start (after optional whitespace)
+        if (!response.StartsWith(MetadataOpenTag, StringComparison.Ordinal))
         {
-            int jsonStart = metaStart + MetadataOpenTag.Length;
-            string json = response.Substring(jsonStart, metaEnd - jsonStart);
+            // No metadata block at start - return full response as display text
+            return (metadata, response);
+        }
+
+        int metaEnd = response.IndexOf(MetadataCloseTag, StringComparison.Ordinal);
+        if (metaEnd < 0)
+        {
+            // Closing tag not found - treat whole response as text
+            Debug.LogWarning("[NPCMetadata] Missing closing [/META] tag in LLM response.");
+            return (metadata, response);
+        }
+
+        int jsonStart = MetadataOpenTag.Length;
+        string json = response.Substring(jsonStart, metaEnd - jsonStart).Trim();
+
+        // Clean JSON: remove surrounding quotes and unescape if model escaped the JSON
+        if (json.Length >= 2 && ((json.StartsWith("\"") && json.EndsWith("\"")) || (json.StartsWith("'" ) && json.EndsWith("'"))))
+        {
+            json = json.Substring(1, json.Length - 2);
+            try { json = System.Text.RegularExpressions.Regex.Unescape(json); } catch { }
+        }
+
+        // Strip any backticks or code fences the model might include
+        json = json.Trim('\n', '\r', ' ', '`');
+
+        // Attempt to parse JSON using manual parsing first (more robust)
+        try
+        {
             metadata = ParseFromJson(json);
-            
-            // Add text before and after metadata
-            displayText.Append(response.Substring(0, metaStart));
-            displayText.Append(response.Substring(metaEnd + MetadataCloseTag.Length));
         }
-        else
+        catch (Exception e)
         {
-            displayText.Append(response);
+            Debug.LogWarning($"[NPCMetadata] Failed to parse metadata JSON manually: {e.Message}. JSON: '{json}'");
+            // Fallback to Unity's JsonUtility
+            try
+            {
+                var wrapper = JsonUtility.FromJson<NPCMetadataJsonWrapper>(json);
+                if (wrapper != null)
+                {
+                    metadata.animatorTrigger = wrapper.animatorTrigger ?? string.Empty;
+                    metadata.isFocused = wrapper.isFocused;
+                    metadata.isIgnoring = wrapper.isIgnoring;
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[NPCMetadata] Failed to parse metadata JSON with JsonUtility: {ex.Message}. JSON: '{json}'");
+            }
         }
-        
-        return (metadata, displayText.ToString());
+
+        // The spoken text is whatever follows the closing tag
+        string after = response.Substring(metaEnd + MetadataCloseTag.Length).TrimStart('\n', '\r', ' ');
+        return (metadata, after);
     }
     
     /// <summary>
@@ -69,27 +111,63 @@ public class NPCMetadata
         
         return metadata;
     }
+
+    // Helper wrapper matching the expected JSON shape so we can use JsonUtility
+    [Serializable]
+    private class NPCMetadataJsonWrapper
+    {
+        public string animatorTrigger = "";
+        public bool isFocused = false;
+        public bool isIgnoring = false;
+    }
     
     private static string ExtractStringValue(string json, string key)
     {
+        // Try quoted key first
         string searchKey = $"\"{key}\"";
         int keyIndex = json.IndexOf(searchKey, System.StringComparison.OrdinalIgnoreCase);
+        if (keyIndex < 0)
+        {
+            // Try unquoted key
+            searchKey = key;
+            keyIndex = json.IndexOf(searchKey, System.StringComparison.OrdinalIgnoreCase);
+        }
         if (keyIndex < 0) return "";
         
         int colonPos = json.IndexOf(":", keyIndex);
         if (colonPos < 0) return "";
         
         int startQuote = json.IndexOf("\"", colonPos);
-        if (startQuote < 0) return "";
-        
-        int endQuote = json.IndexOf("\"", startQuote + 1);
-        return endQuote < 0 ? "" : json.Substring(startQuote + 1, endQuote - startQuote - 1);
+        if (startQuote >= 0)
+        {
+            // Quoted value
+            int endQuote = json.IndexOf("\"", startQuote + 1);
+            return endQuote < 0 ? "" : json.Substring(startQuote + 1, endQuote - startQuote - 1);
+        }
+        else
+        {
+            // Unquoted value, find comma or }
+            int endPos = json.IndexOfAny(new[] { ',', '}' }, colonPos);
+            if (endPos < 0) endPos = json.Length;
+            string value = json.Substring(colonPos + 1, endPos - colonPos - 1).Trim();
+            // Remove quotes if present
+            if (value.StartsWith("\"") && value.EndsWith("\"") && value.Length >= 2)
+                value = value.Substring(1, value.Length - 2);
+            return value;
+        }
     }
     
     private static bool ExtractBoolValue(string json, string key)
     {
+        // Try quoted key first
         string searchKey = $"\"{key}\"";
         int keyIndex = json.IndexOf(searchKey, System.StringComparison.OrdinalIgnoreCase);
+        if (keyIndex < 0)
+        {
+            // Try unquoted key
+            searchKey = key;
+            keyIndex = json.IndexOf(searchKey, System.StringComparison.OrdinalIgnoreCase);
+        }
         if (keyIndex < 0) return false;
         
         int colonPos = json.IndexOf(":", keyIndex);
@@ -98,8 +176,11 @@ public class NPCMetadata
         int endPos = json.IndexOfAny(new[] { ',', '}' }, colonPos);
         if (endPos < 0) endPos = json.Length;
         
-        string value = json.Substring(colonPos + 1, endPos - colonPos - 1).Trim();
-        return value.Equals("true", System.StringComparison.OrdinalIgnoreCase);
+        string value = json.Substring(colonPos + 1, endPos - colonPos - 1).Trim().ToLowerInvariant();
+        // Remove quotes if present
+        if (value.StartsWith("\"") && value.EndsWith("\"") && value.Length >= 2)
+            value = value.Substring(1, value.Length - 2);
+        return value == "true";
     }
 }
 
@@ -148,29 +229,44 @@ public class NPCAnimatorConfig
     {
         if (string.IsNullOrEmpty(triggerName))
             return false;
-        
-        // Check if trigger is in the available list
+        // Warn if trigger not in the advertised list but continue (LLM may use synonyms)
         if (!availableTriggers.Contains(triggerName))
         {
             Debug.LogWarning($"Animator trigger '{triggerName}' not in available triggers list");
-            return false;
         }
-        
-        // DEBUG: Just log the animation trigger instead of executing it
-        Debug.Log($"🎭 [DEBUG] Animation trigger requested: {triggerName}");
-        //return true;
-        
-        // TODO: Uncomment when ready to use actual animator
-        
+
+        Debug.Log($"🎭 Animation trigger requested: {triggerName}");
+
         if (animator == null)
         {
             Debug.LogWarning("Animator not assigned!");
             return false;
         }
-        
-        animator.Play(triggerName, 2);
-        Debug.Log($"✓ Triggered animation: {triggerName}");
-        return true;
+
+        try
+        {
+            // Prefer SetTrigger if the controller defines the trigger parameter
+            var parameters = animator.parameters;
+            foreach (var p in parameters)
+            {
+                if (p.name == triggerName && p.type == UnityEngine.AnimatorControllerParameterType.Trigger)
+                {
+                    animator.SetTrigger(triggerName);
+                    Debug.Log($"✓ Set animator trigger parameter: {triggerName}");
+                    return true;
+                }
+            }
+
+            // Fallback: attempt to play an animation state by name
+            animator.Play(triggerName, 0);
+            Debug.Log($"✓ Played animator state: {triggerName}");
+            return true;
+        }
+        catch (Exception e)
+        {
+            Debug.LogWarning($"Failed to trigger animator '{triggerName}': {e.Message}");
+            return false;
+        }
         
     }
     
@@ -188,33 +284,28 @@ public class NPCAnimatorConfig
         }
 
         UpdateLookTarget(immediate || stateChanged);
-
-        // TODO: Uncomment when ready to use actual animator
-        /*
-        if (animator == null)
-            return;
-
-        // Reset all attention booleans
-        if (!string.IsNullOrEmpty(focusedBoolParam))
-            animator.SetBool(focusedBoolParam, false);
-        if (!string.IsNullOrEmpty(ignoringBoolParam))
-            animator.SetBool(ignoringBoolParam, false);
-
-        switch (state)
+        // Apply animator boolean parameters if available
+        if (animator != null)
         {
-            case AttentionState.Focused:
+            try
+            {
                 if (!string.IsNullOrEmpty(focusedBoolParam))
-                    animator.SetBool(focusedBoolParam, true);
-                break;
-            case AttentionState.Ignoring:
+                    animator.SetBool(focusedBoolParam, state == AttentionState.Focused);
                 if (!string.IsNullOrEmpty(ignoringBoolParam))
-                    animator.SetBool(ignoringBoolParam, true);
-                break;
-            case AttentionState.Idle:
-                TriggerAnimation("idle");
-                break;
+                    animator.SetBool(ignoringBoolParam, state == AttentionState.Ignoring);
+
+                if (state == AttentionState.Idle)
+                {
+                    // Try to play an idle trigger/state if available
+                    if (availableTriggers.Contains("idle"))
+                        TriggerAnimation("idle");
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"Failed to set animator attention booleans: {e.Message}");
+            }
         }
-        */
     }
 
     public AttentionState CurrentAttentionState => currentAttentionState;

@@ -39,23 +39,20 @@ public class LlamaManager : MonoBehaviour
             return;
         }
 
-        //  Add user message
-        memory.AddUserMessage(userPrompt);
+    //  Add user message to shared memory
+    memory.AddDialogueTurn("User", userPrompt);
 
-        //  Build full prompt from memory
-        string fullPrompt = memory.GetFullConversation();
-        bridge.prompt = fullPrompt;
+    //  Build full prompt from memory (assumes "Assistant" is registered NPC name)
+    string fullPrompt = memory.GetFullConversation();
 
-        Debug.Log($"[LLaMA Manager] Sending conversation:\n{fullPrompt}");
+    Debug.Log($"[LLaMA Manager] Sending conversation:\n{fullPrompt}");
 
-        //  Creates model reply
-        bridge.GenerateText();
+    // Generate reply using the explicit overload so we don't rely on bridge.prompt
+    string reply = bridge.GenerateText(fullPrompt, 0.7f, 1.1f, 256).Trim();
+    Debug.Log($"[LLaMA Manager] Assistant replied:\n{reply}");
 
-        string reply = bridge.generatedText.Trim();
-        Debug.Log($"[LLaMA Manager] Assistant replied:\n{reply}");
-
-        // Store reply in memory
-        memory.AddAssistantMessage(reply);
+    // Store reply in shared memory
+    memory.AddDialogueTurn("Assistant", reply);
     }
 
 

@@ -104,19 +104,29 @@ public class DialogueManager : MonoBehaviour
     }
     
     /// <summary>
-    /// Track a decision and return whether this NPC should be forced to speak
+    /// Track a decision and return whether this NPC should be forced to speak.
+    /// If no NPC has responded after all make decisions, force the first one.
     /// </summary>
     public bool RecordDecision(string npcName, bool wantsToSpeak)
     {
         turnDecisionsThisRound++;
         
-        // If any NPC wants to speak, let them
+        // If model wants to speak, allow it
         if (wantsToSpeak)
+        {
+            Debug.Log($"✅ {npcName} chose to respond (decision #{turnDecisionsThisRound})");
             return true;
+        }
         
-        // If this is the second NPC and first one passed, force this one to speak
-        if (turnDecisionsThisRound == 2)
+        // Get total NPC count
+        int totalNPCs = NPCManager.Instance != null ? NPCManager.Instance.GetActiveNPCCount() : 2;
+        
+        // If this is the last NPC to decide and no one has spoken yet, FORCE this one to respond
+        if (turnDecisionsThisRound >= totalNPCs)
+        {
+            Debug.LogWarning($"⚠️ All NPCs passed! Forcing {npcName} to respond.");
             return true;
+        }
         
         return false;
     }

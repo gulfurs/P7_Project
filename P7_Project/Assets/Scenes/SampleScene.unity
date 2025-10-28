@@ -1397,6 +1397,83 @@ RectTransform:
   m_AnchoredPosition: {x: -331, y: -355}
   m_SizeDelta: {x: 200, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!1 &524202513
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 524202516}
+  - component: {fileID: 524202519}
+  - component: {fileID: 524202518}
+  - component: {fileID: 524202517}
+  m_Layer: 0
+  m_Name: LlamaMan
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &524202516
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 524202513}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 440.53302, y: 148.91286, z: -12.021956}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &524202517
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 524202513}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 163f35d9fe1095544a3898055387e911, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  bridge: {fileID: 524202519}
+  modelPath: Assets/StreamingAssets/models/llama2888.gguf
+  memory: {fileID: 524202518}
+--- !u!114 &524202518
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 524202513}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f70dcc1733db8e24db6239098ad5d347, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  conversationPreview: 
+--- !u!114 &524202519
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 524202513}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0a963ef881cf55a4589d9c6abb3ef56f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  modelPath: Assets/StreamingAssets/models/llama2888.gguf
+  generatedText: 
+  systemContext: 
 --- !u!1 &557628610
 GameObject:
   m_ObjectHideFlags: 0
@@ -1702,6 +1779,7 @@ MonoBehaviour:
   - {fileID: 969207763}
   - {fileID: 1002537021}
   globalTTSEnabled: 1
+  userTransform: {fileID: 0}
 --- !u!4 &673011204
 Transform:
   m_ObjectHideFlags: 0
@@ -2209,6 +2287,10 @@ MonoBehaviour:
     audioSource: {fileID: 945180899}
     animatorConfig:
       animator: {fileID: 0}
+      gazeOrigin: {fileID: 0}
+      neutralLookTarget: {fileID: 0}
+      ignoreLookTarget: {fileID: 0}
+      gazeLerpSpeed: 8
       availableTriggers:
       - nod
       - shake_head
@@ -2220,14 +2302,10 @@ MonoBehaviour:
       focusedBoolParam: IsFocused
       ignoringBoolParam: IsIgnoring
     npcGameObject: {fileID: 0}
-  ollamaClient: {fileID: 812325951}
+  llamaBridge: {fileID: 524202519}
   ttsHandler: {fileID: 0}
-  memory:
-    shortTermCapacity: 5
-    mediumTermCapacity: 20
+  llamaMemory: {fileID: 524202518}
   enableAutoResponse: 1
-  responseDelay: 2
-  responseChance: 0.8
   userInput: {fileID: 2006649159}
   outputText: {fileID: 1197911581}
   npcNameLabel: {fileID: 409174237}
@@ -2302,6 +2380,10 @@ MonoBehaviour:
     audioSource: {fileID: 1049591165}
     animatorConfig:
       animator: {fileID: 0}
+      gazeOrigin: {fileID: 0}
+      neutralLookTarget: {fileID: 0}
+      ignoreLookTarget: {fileID: 0}
+      gazeLerpSpeed: 8
       availableTriggers:
       - nod
       - shake_head
@@ -2313,14 +2395,10 @@ MonoBehaviour:
       focusedBoolParam: IsFocused
       ignoringBoolParam: IsIgnoring
     npcGameObject: {fileID: 0}
-  ollamaClient: {fileID: 812325951}
+  llamaBridge: {fileID: 524202519}
   ttsHandler: {fileID: 0}
-  memory:
-    shortTermCapacity: 5
-    mediumTermCapacity: 20
+  llamaMemory: {fileID: 524202518}
   enableAutoResponse: 1
-  responseDelay: 2
-  responseChance: 0.8
   userInput: {fileID: 16006732}
   outputText: {fileID: 1077084365}
   npcNameLabel: {fileID: 661143557}
@@ -3439,6 +3517,54 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1290769486}
   m_CullTransparentMesh: 1
+--- !u!1 &1313006352
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1313006354}
+  - component: {fileID: 1313006355}
+  m_Layer: 0
+  m_Name: GameObject
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1313006354
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1313006352}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 970.51245, y: 179.83646, z: -100.9697}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1313006355
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1313006352}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1ebf2ca1d85b71b419af5885d8dd5d5e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  llamaBridge: {fileID: 524202519}
+  npcInstances:
+  - {fileID: 969207763}
+  - {fileID: 1002537021}
 --- !u!4 &1355549240 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 6640792651889248335, guid: 932366060944a9045903b2681ecec3df, type: 3}
@@ -4044,10 +4170,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   currentSpeaker: 
-  lastSpeakTime: 0
-  minimumTurnGap: 1
+  lastSpeakerName: 
   totalTurns: 0
-  queuedRequests: 0
 --- !u!4 &1726134543
 Transform:
   m_ObjectHideFlags: 0
@@ -4891,3 +5015,5 @@ SceneRoots:
   - {fileID: 1641263691}
   - {fileID: 4158779404490473210}
   - {fileID: 921026363}
+  - {fileID: 524202516}
+  - {fileID: 1313006354}

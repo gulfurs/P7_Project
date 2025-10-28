@@ -1,12 +1,11 @@
 using System;
-using System.Collections.Generic;
 using System.Text;
-using System.Threading;
 using UnityEngine;
 using TMPro;
 
 /// <summary>
-/// Main NPC chat instance - now much cleaner with delegated responsibilities
+/// Main NPC chat instance - cleaner with delegated responsibilities
+/// Directly references NPCProfile for system prompts
 /// </summary>
 public class NPCChatInstance : MonoBehaviour
 {
@@ -14,11 +13,11 @@ public class NPCChatInstance : MonoBehaviour
     public NPCProfile npcProfile;
 
     [Header("Component References")]
-    public OllamaChatClient ollamaClient;
+    public LlamaBridge llamaBridge;
     public NPCTTSHandler ttsHandler;
     
     [Header("Memory")]
-    public NPCMemory memory = new NPCMemory();
+    public LlamaMemory llamaMemory;
 
     [Header("Chat Settings")]
     public bool enableAutoResponse = true;
@@ -29,14 +28,7 @@ public class NPCChatInstance : MonoBehaviour
     public TMP_Text npcNameLabel;
     public TMP_Text memoryDisplayText;
 
-    private CancellationTokenSource cts;
     private bool isCurrentlySpeaking;
-
-    private readonly StringBuilder metadataBuffer = new StringBuilder();
-    private bool isParsingMetadata;
-
-    private const string MetadataOpenTag = "[META]";
-    private const string MetadataCloseTag = "[/META]";
 
     private bool IsTTSEnabled =>
         npcProfile != null &&
@@ -57,24 +49,29 @@ public class NPCChatInstance : MonoBehaviour
             npcProfile.animatorConfig.TickGaze(Time.deltaTime);
     }
 
-    void OnDestroy()
-    {
-        cts?.Cancel();
-        cts?.Dispose();
-        cts = null;
-    }
-
     private void InitializeComponents()
     {
-        // Auto-find OllamaClient
-        if (ollamaClient == null)
+        // Auto-find LlamaBridge
+        if (llamaBridge == null)
         {
-            ollamaClient = FindObjectOfType<OllamaChatClient>();
-            if (ollamaClient == null)
+            llamaBridge = FindObjectOfType<LlamaBridge>();
+            if (llamaBridge == null)
             {
-                Debug.LogError($"NPCChatInstance '{gameObject.name}' needs an OllamaChatClient!");
+                Debug.LogError($"NPCChatInstance '{gameObject.name}' needs a LlamaBridge!");
                 return;
             }
+        }
+
+        // Get LlamaMemory
+        if (llamaMemory == null)
+        {
+            llamaMemory = LlamaMemory.Instance;
+        }
+
+        // Register this NPC's system prompt
+        if (npcProfile != null)
+        {
+            llamaMemory.RegisterNPCPrompt(npcProfile.npcName, npcProfile.GetFullSystemPrompt());
         }
 
         // Setup TTS Handler
@@ -124,13 +121,20 @@ public class NPCChatInstance : MonoBehaviour
     public void Send()
     {
         var userText = userInput != null ? userInput.text : "";
-        if (string.IsNullOrWhiteSpace(userText) || npcProfile == null || ollamaClient == null) return;
+        if (string.IsNullOrWhiteSpace(userText) || npcProfile == null || llamaBridge == null) return;
+
+        // Get LlamaMemory
+        if (llamaMemory == null)
+            llamaMemory = LlamaMemory.Instance;
 
         // Notify DialogueManager
         if (DialogueManager.Instance != null)
         {
             DialogueManager.Instance.OnUserAnswered(userText);
         }
+
+        // Add user message to shared memory (everyone hears it)
+        llamaMemory.AddDialogueTurn("User", userText);
 
         // Broadcast user answer to ALL interviewers
         var manager = NPCManager.Instance;
@@ -142,7 +146,6 @@ public class NPCChatInstance : MonoBehaviour
             {
                 if (npc != null)
                 {
-                    npc.memory.AddDialogueTurn("User", userText);
                     // Each NPC asks LLM if it should respond
                     npc.AskLLMIfShouldRespond(userText);
                 }
@@ -156,128 +159,237 @@ public class NPCChatInstance : MonoBehaviour
     /// <summary>
     /// Ask the LLM itself whether this NPC should ask a follow-up
     /// </summary>
-    public async void AskLLMIfShouldRespond(string userAnswer)
+    public void AskLLMIfShouldRespond(string userAnswer)
     {
+        // Run the decision process in a coroutine to stagger NPCs and avoid simultaneous model calls
         if (!enableAutoResponse || isCurrentlySpeaking)
             return;
-        
-        // Build decision prompt
-        string decisionPrompt = BuildTurnDecisionPrompt(userAnswer);
-        
-        var messages = new List<OllamaChatClient.ChatMessage>
+
+        StartCoroutine(AskLLMIfShouldRespondRoutine(userAnswer));
+    }
+
+    private System.Collections.IEnumerator AskLLMIfShouldRespondRoutine(string userAnswer)
+    {
+        // Small random delay to stagger multiple NPCs and make conversation natural
+        float delay = UnityEngine.Random.Range(0.05f, 0.35f);
+        yield return new WaitForSeconds(delay);
+
+        if (!enableAutoResponse || isCurrentlySpeaking)
+            yield break;
+
+        if (llamaBridge == null)
         {
-            new OllamaChatClient.ChatMessage { role = "system", content = decisionPrompt },
-            new OllamaChatClient.ChatMessage { role = "user", content = userAnswer }
-        };
+            Debug.LogError("[NPCChat] LlamaBridge reference missing for decision call.");
+            yield break;
+        }
+
+        // If someone already has the turn, don't bother
+        if (DialogueManager.Instance != null && !string.IsNullOrEmpty(DialogueManager.Instance.currentSpeaker))
+            yield break;
+
+        // Build decision prompt inline - ULTRA simple with explicit instruction
+        string decisionPrompt = $"Question: Should {npcProfile.npcName} respond to the candidate saying \"{userAnswer}\"?\nAnswer with only YES or NO: ";
+
+        // Queue the decision request to avoid overlapping native calls
+        string decisionRaw = string.Empty;
+        bool decisionDone = false;
+        llamaBridge.EnqueueGenerate(decisionPrompt, 0.5f, 1.0f, 16,
+            (res) =>
+            {
+                decisionRaw = (res ?? string.Empty).Trim();
+                decisionDone = true;
+            });
+
+        yield return new WaitUntil(() => decisionDone);
+
+        string response = decisionRaw.ToLower();
+
+        // If the model produced an error or empty output, treat as 'no'
+        if (response.Contains("error") || response.Contains("llama_decode") || response.Contains("[error:") || response.Length == 0)
+        {
+            Debug.LogWarning($"[NPCChat] Decision call produced error for {npcProfile.npcName}: {response}");
+            yield break;
+        }
+
+        // Look for explicit yes/no in the response
+        bool wantsToSpeak = false;
         
-        // Ask LLM for decision (should be quick, low temp)
-        var response = await ollamaClient.SendChatAsync(
-            messages,
-            temperature: 0.3f, // Low temp for consistent decisions
-            repeatPenalty: 1.0f,
-            null,
-            null,
-            default
-        );
-        
-        if (!string.IsNullOrEmpty(response.error))
-            return;
-        
-        // Parse LLM decision
-        string decision = response.content.Trim().ToLower();
-        bool shouldRespond = decision.Contains("yes") || decision.Contains("respond");
-        
-        Debug.Log($"🤖 {npcProfile.npcName} LLM decision: {decision.Substring(0, Mathf.Min(50, decision.Length))}... → {(shouldRespond ? "RESPOND" : "PASS")}");
-        
-        // Check if we should force a response (second NPC if first passed)
+        // Check for YES first (more specific)
+        if (System.Text.RegularExpressions.Regex.IsMatch(response, @"\byes\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+        {
+            wantsToSpeak = true;
+        }
+        // If model outputs garbage (code, etc), default to NO
+        else if (response.Contains("```") || response.Contains("def ") || response.Contains("python") || response.Contains("function"))
+        {
+            Debug.LogWarning($"[NPCChat] Model outputted code/garbage for {npcProfile.npcName}, treating as NO");
+            wantsToSpeak = false;
+        }
+        // Explicit NO
+        else if (System.Text.RegularExpressions.Regex.IsMatch(response, @"\bno\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+        {
+            wantsToSpeak = false;
+        }
+        // Anything unclear defaults to NO
+        else
+        {
+            Debug.LogWarning($"[NPCChat] Unclear response from {npcProfile.npcName}: {response.Substring(0, Mathf.Min(50, response.Length))}");
+            wantsToSpeak = false;
+        }
+
+        Debug.Log($"🤖 {npcProfile.npcName} LLM decision: {response.Substring(0, Mathf.Min(80, response.Length))}... → {(wantsToSpeak ? "RESPOND" : "PASS")}");
+
+        // Check with DialogueManager for forcing rules
+        bool shouldRespond = wantsToSpeak;
         if (DialogueManager.Instance != null)
         {
             shouldRespond = DialogueManager.Instance.RecordDecision(npcProfile.npcName, shouldRespond);
         }
-        
+
         if (shouldRespond)
         {
             // Request turn and generate actual response
             if (DialogueManager.Instance != null && DialogueManager.Instance.RequestTurn(npcProfile.npcName))
             {
-                await ExecuteSpeech($"Ask a relevant follow-up question to: {userAnswer}");
+                // Start the speech coroutine which will enqueue the prompt through the bridge
+                StartCoroutine(ExecuteSpeechRoutine(userAnswer));
             }
         }
     }
     
     /// <summary>
-    /// Build prompt for LLM to decide whether to respond
-    /// </summary>
-    private string BuildTurnDecisionPrompt(string userAnswer)
-    {
-        var promptBuilder = new StringBuilder()
-            .Append("You are ")
-            .Append(npcProfile.npcName)
-            .Append(". ")
-            .Append(npcProfile.systemPrompt)
-            .Append("\n\nCandidate said: \"").Append(userAnswer).Append("\"\n")
-            .Append("Do you have a relevant follow-up? YES or NO only.");
-
-        return promptBuilder.ToString();
-    }
-
-    /// <summary>
     /// Internal method to execute the actual speech
     /// </summary>
-    private async System.Threading.Tasks.Task ExecuteSpeech(string messageText)
+    private System.Collections.IEnumerator ExecuteSpeechRoutine(string messageText)
     {
-        if (isCurrentlySpeaking) return;
-        
+        if (isCurrentlySpeaking) yield break;
+
         isCurrentlySpeaking = true;
 
-    cts?.Cancel();
-    cts?.Dispose();
-    cts = new CancellationTokenSource();
-
-        // Build prompt with memory
-        string fullSystemPrompt = BuildPromptWithMemory();
-
-        var messages = new List<OllamaChatClient.ChatMessage>
+        if (npcProfile == null || llamaBridge == null)
         {
-            new OllamaChatClient.ChatMessage { role = "system", content = fullSystemPrompt },
-            new OllamaChatClient.ChatMessage { role = "user", content = messageText }
-        };
-
-        // Clear output and reset metadata parsing
-        if (outputText) outputText.text = "";
-        ResetMetadataParsing();
-
-        // Stream response with TTS buffering
-        var ttsBuffer = new StringBuilder();
-        var displayBuffer = new StringBuilder();
-        bool ttsActive = IsTTSEnabled;
-        bool shouldStreamDisplay = !ttsActive;
-        
-        var response = await ollamaClient.SendChatAsync(
-            messages,
-            npcProfile.temperature,
-            npcProfile.repeatPenalty,
-            null,
-            token => ProcessToken(token, ttsBuffer, displayBuffer, ttsActive, shouldStreamDisplay),
-            cts.Token
-        );
-
-        if (!string.IsNullOrEmpty(response.error))
-        {
-            if (outputText) outputText.text = "Error: " + response.error;
+            Debug.LogError($"[NPCChat] Missing npcProfile or llamaBridge!");
             FinishSpeaking();
-            return;
+            yield break;
         }
 
-        // Process remaining TTS buffer
-        string fullDisplayText = displayBuffer.ToString();
-        ProcessRemainingTTS(ttsBuffer, fullDisplayText, ttsActive);
+        // Get the NPC's system prompt directly from their profile
+        string systemPrompt = npcProfile.GetFullSystemPrompt();
 
-        // Store response immediately, don't wait for TTS
-        memory.AddDialogueTurn(npcProfile.npcName, response.content);
+        // Get conversation history from shared memory
+        if (llamaMemory == null)
+            llamaMemory = LlamaMemory.Instance;
+        
+        string conversationHistory = llamaMemory.GetShortTermContext(2); // Only last 2 turns
+
+        string response = string.Empty;
+        bool done = false;
+
+        // Build MINIMAL prompt: Short system + recent history + NPC name
+        var promptBuilder = new System.Text.StringBuilder();
+        promptBuilder.Append(npcProfile.GetShortSystemPrompt()).Append("\n\n");
+        
+        // Add recent conversation
+        if (!string.IsNullOrEmpty(conversationHistory))
+            promptBuilder.Append(conversationHistory).Append("\n");
+
+        // NPC continues
+        promptBuilder.Append(npcProfile.npcName).Append(": ");
+
+        string fullPrompt = promptBuilder.ToString();
+
+        // Enqueue prompt via bridge
+        llamaBridge.EnqueueGenerate(fullPrompt, npcProfile.temperature, npcProfile.repeatPenalty, 64, (res) => { response = (res ?? string.Empty).Trim(); done = true; });
+
+        // Wait until the request completes
+        yield return new WaitUntil(() => done);
+
+        if (string.IsNullOrEmpty(response))
+        {
+            if (outputText) outputText.text = "No response";
+            FinishSpeaking();
+            yield break;
+        }
+
+        // Extract metadata and clean display text
+        string originalResponse = response;
+        var (metadata, displayText) = NPCMetadata.ProcessResponse(response);
+
+        // If the model didn't include metadata at the start, give it one retry with a short format reminder
+        if (!response.TrimStart().StartsWith("[META]", StringComparison.Ordinal))
+        {
+            Debug.LogWarning($"[NPCChat] Response missing metadata block for {npcProfile.npcName}. Using defaults.");
+            // Use default metadata instead of retry
+            metadata = new NPCMetadata { animatorTrigger = "idle", isFocused = true, isIgnoring = false };
+        }
+
+        // Clean spoken text: remove assistant/user labels, code fences, and collapse repeated whitespace
+        if (!string.IsNullOrEmpty(displayText))
+        {
+            // Remove common role prefixes like 'Assistant:' or 'User:' at line starts
+            displayText = System.Text.RegularExpressions.Regex.Replace(displayText, @"(?m)^(assistant\s*:|assistant:|user\s*:|user:)\s*", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            // Remove any remaining code fences
+            displayText = displayText.Replace("```", "");
+            // Strip a leading "Name:" prefix if present
+            if (displayText.StartsWith(npcProfile.npcName + ":", StringComparison.OrdinalIgnoreCase))
+            {
+                int colon = displayText.IndexOf(":");
+                if (colon >= 0 && colon + 1 < displayText.Length)
+                    displayText = displayText.Substring(colon + 1).TrimStart();
+            }
+            // Collapse multiple newlines and trim
+            displayText = System.Text.RegularExpressions.Regex.Replace(displayText, "\n{2,}", "\n").Trim();
+        }
+
+        // Update UI with clean text only
+        if (outputText)
+            outputText.text = displayText;
+
+        // Execute metadata (animations, attention state, gaze)
+        ExecuteMetadata(metadata);
+
+        // Decide whether the output is an error (don't TTS error strings)
+        bool isErrorOutput = false;
+        if (!string.IsNullOrEmpty(displayText))
+        {
+            var low = displayText.ToLowerInvariant();
+            if (low.Contains("error") || low.Contains("llama_decode") || low.StartsWith("[error:") )
+                isErrorOutput = true;
+        }
+
+        // Process TTS if enabled and not an error
+        if (IsTTSEnabled && ttsHandler != null && !isErrorOutput)
+        {
+            try
+            {
+                // Limit TTS length to first sentence/300 chars to improve responsiveness
+                string ttsText = displayText ?? string.Empty;
+                if (ttsText.Length > 300)
+                {
+                    int idx = ttsText.IndexOf('.', 200);
+                    if (idx > 0)
+                        ttsText = ttsText.Substring(0, idx + 1);
+                    else
+                        ttsText = ttsText.Substring(0, 300);
+                }
+
+                ttsHandler.ProcessResponseForTTS(ttsText);
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogError($"[NPCChat] TTS error: {e.Message}");
+            }
+        }
+
+        // Store the spoken text in memory (or a short error message)
+        string memoryText = isErrorOutput ? "[LLM ERROR]" : (displayText ?? string.Empty);
+        llamaMemory.AddDialogueTurn(npcProfile.npcName, memoryText);
+        Debug.Log($"[NPCChat] Raw LLM response: {response}");
         
         LogMemoryState();
+
         FinishSpeaking();
+        yield break;
     }
 
     /// <summary>
@@ -285,164 +397,14 @@ public class NPCChatInstance : MonoBehaviour
     /// </summary>
     private string BuildPromptWithMemory()
     {
-        var promptBuilder = new StringBuilder(npcProfile.GetFullSystemPrompt());
+        if (llamaMemory == null)
+            llamaMemory = LlamaMemory.Instance;
 
-        string mediumTermContext = memory.GetMediumTermContext();
-        if (!string.IsNullOrEmpty(mediumTermContext))
-            promptBuilder.Append("\n\n").Append(mediumTermContext);
-
-        string shortTermContext = memory.GetShortTermContext();
-        if (!string.IsNullOrEmpty(shortTermContext))
-            promptBuilder.Append("\n\n").Append(shortTermContext);
-
-        return promptBuilder.ToString();
+        return llamaMemory.BuildPromptForGeneration(npcProfile.npcName, 4);
     }
 
     /// <summary>
-    /// Process incoming tokens for metadata and TTS
-    /// </summary>
-    private void ProcessToken(
-        string token,
-        StringBuilder ttsBuffer,
-        StringBuilder displayBuffer,
-        bool ttsActive,
-        bool shouldStreamDisplay)
-    {
-        foreach (char c in token)
-        {
-            if (HandleMetadataChar(c, displayBuffer, ttsBuffer, ttsActive))
-                continue;
-
-            displayBuffer.Append(c);
-
-            if (ttsActive)
-                HandleTTSChar(c, ttsBuffer, displayBuffer);
-        }
-
-        if (shouldStreamDisplay && outputText)
-            outputText.text = displayBuffer.ToString();
-    }
-
-    private bool HandleMetadataChar(
-        char c,
-        StringBuilder displayBuffer,
-        StringBuilder ttsBuffer,
-        bool ttsActive)
-    {
-        if (!isParsingMetadata)
-        {
-            if (metadataBuffer.Length > 0)
-            {
-                int matchIndex = metadataBuffer.Length;
-                if (matchIndex < MetadataOpenTag.Length && MetadataOpenTag[matchIndex] == c)
-                {
-                    metadataBuffer.Append(c);
-                    if (metadataBuffer.Length == MetadataOpenTag.Length)
-                    {
-                        isParsingMetadata = true;
-                        metadataBuffer.Clear();
-                    }
-                    return true;
-                }
-
-                FlushMetadataBuffer(displayBuffer, ttsBuffer, ttsActive);
-                metadataBuffer.Clear();
-                // Allow current char to be processed normally
-            }
-
-            if (c == MetadataOpenTag[0])
-            {
-                metadataBuffer.Append(c);
-                return true;
-            }
-        }
-
-        if (isParsingMetadata)
-        {
-            metadataBuffer.Append(c);
-
-            if (EndsWith(metadataBuffer, MetadataCloseTag))
-            {
-                int jsonLength = metadataBuffer.Length - MetadataCloseTag.Length;
-                string jsonContent = metadataBuffer.ToString(0, jsonLength);
-                ExecuteMetadata(NPCMetadata.ParseFromJson(jsonContent));
-
-                metadataBuffer.Clear();
-                isParsingMetadata = false;
-            }
-            return true;
-        }
-
-        return false;
-    }
-
-    private void FlushMetadataBuffer(
-        StringBuilder displayBuffer,
-        StringBuilder ttsBuffer,
-        bool ttsActive)
-    {
-        if (metadataBuffer.Length == 0)
-            return;
-
-        int length = metadataBuffer.Length;
-        for (int i = 0; i < length; i++)
-        {
-            char bufferedChar = metadataBuffer[i];
-            displayBuffer.Append(bufferedChar);
-
-            if (ttsActive)
-                HandleTTSChar(bufferedChar, ttsBuffer, displayBuffer);
-        }
-    }
-
-    private void HandleTTSChar(
-        char c,
-        StringBuilder ttsBuffer,
-        StringBuilder displayBuffer)
-    {
-        ttsBuffer.Append(c);
-
-        bool isSentenceEnding = c == '.' || c == '!' || c == '?';
-        bool isLongClauseBreak = c == ',' && ttsBuffer.Length > 60;
-
-        if (!isSentenceEnding && !isLongClauseBreak)
-            return;
-
-        string chunk = ttsBuffer.ToString().Trim();
-        if (chunk.Length == 0)
-            return;
-
-        string displaySnapshot = displayBuffer.ToString();
-        EnqueueTTSChunk(chunk, displaySnapshot);
-        ttsBuffer.Clear();
-    }
-
-    private void EnqueueTTSChunk(string chunk, string displaySnapshot)
-    {
-        ttsHandler.EnqueueSpeech(chunk, () =>
-        {
-            if (outputText)
-                outputText.text = displaySnapshot;
-        });
-    }
-
-    private static bool EndsWith(StringBuilder builder, string value)
-    {
-        if (builder.Length < value.Length)
-            return false;
-
-        int start = builder.Length - value.Length;
-        for (int i = 0; i < value.Length; i++)
-        {
-            if (builder[start + i] != value[i])
-                return false;
-        }
-
-        return true;
-    }
-
-    /// <summary>
-    /// Execute metadata actions
+    /// Execute metadata actions (animations, attention, gaze)
     /// </summary>
     private void ExecuteMetadata(NPCMetadata metadata)
     {
@@ -471,31 +433,13 @@ public class NPCChatInstance : MonoBehaviour
     }
 
     /// <summary>
-    /// Process remaining TTS buffer after response completes
-    /// </summary>
-    private void ProcessRemainingTTS(StringBuilder ttsBuffer, string fullDisplayText, bool ttsActive)
-    {
-        if (ttsActive && ttsBuffer.Length > 0)
-        {
-            string chunk = ttsBuffer.ToString().Trim();
-            if (chunk.Length > 0)
-            {
-                EnqueueTTSChunk(chunk, fullDisplayText);
-                ttsBuffer.Clear();
-            }
-        }
-        else if (!ttsActive && outputText)
-        {
-            outputText.text = fullDisplayText;
-        }
-    }
-
-    /// <summary>
     /// Receive message from another NPC - INTERVIEWERS DON'T RESPOND TO EACH OTHER
     /// </summary>
     public void ReceiveExternalMessage(string senderName, string message)
     {
-        memory.AddDialogueTurn(senderName, message);
+        if (llamaMemory == null)
+            llamaMemory = LlamaMemory.Instance;
+        llamaMemory.AddDialogueTurn(senderName, message);
         Debug.Log($"📨 [{npcProfile.npcName}] Heard {senderName} (not responding - interviewer mode)");
         // Interviewers don't respond to each other, only to user
     }
@@ -505,13 +449,9 @@ public class NPCChatInstance : MonoBehaviour
     /// </summary>
     public void LearnFact(string fact)
     {
-        memory.AddFact(fact);
-    }
-
-    private void ResetMetadataParsing()
-    {
-        metadataBuffer.Clear();
-        isParsingMetadata = false;
+        if (llamaMemory == null)
+            llamaMemory = LlamaMemory.Instance;
+        llamaMemory.AddFact(npcProfile.npcName, fact);
     }
 
     private void FinishSpeaking()
@@ -548,13 +488,16 @@ public class NPCChatInstance : MonoBehaviour
 
     private void LogMemoryState()
     {
-        int factCount = memory.GetFactCount();
-        Debug.Log($"🧠 [{npcProfile.npcName}] Memory updated (short-term cap {memory.shortTermCapacity}, facts {factCount}).");
+        if (llamaMemory == null)
+            llamaMemory = LlamaMemory.Instance;
+
+        int factCount = llamaMemory.GetFactCount(npcProfile.npcName);
+        Debug.Log($"🧠 [{npcProfile.npcName}] Shared memory updated (facts {factCount}).");
 
         // Update UI if available
         if (memoryDisplayText != null)
         {
-            string display = memory.GetShortTermContext();
+            string display = llamaMemory.GetShortTermContext();
             memoryDisplayText.text = string.IsNullOrEmpty(display) ? string.Empty : display;
         }
     }
@@ -562,8 +505,10 @@ public class NPCChatInstance : MonoBehaviour
     [ContextMenu("Clear Memory")]
     public void ClearMemory()
     {
-        memory.ClearAll();
-        Debug.Log($"🔄 [{npcProfile.npcName}] Memory cleared");
+        if (llamaMemory == null)
+            llamaMemory = LlamaMemory.Instance;
+        llamaMemory.ClearAll();
+        Debug.Log($"🔄 [{npcProfile.npcName}] Shared memory cleared");
 
         if (memoryDisplayText != null)
             memoryDisplayText.text = string.Empty;

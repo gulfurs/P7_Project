@@ -111,6 +111,20 @@ public class NPCManager : MonoBehaviour
         return names;
     }
     
+    /// <summary>
+    /// Get count of active NPCs (for forcing response logic)
+    /// </summary>
+    public int GetActiveNPCCount()
+    {
+        int count = 0;
+        foreach (var npc in npcInstances)
+        {
+            if (npc != null && npc.npcProfile != null && !string.IsNullOrEmpty(npc.npcProfile.npcName))
+                count++;
+        }
+        return count;
+    }
+    
 
     
     /// <summary>

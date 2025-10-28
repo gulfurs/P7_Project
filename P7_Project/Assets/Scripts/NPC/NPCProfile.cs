@@ -33,7 +33,13 @@ public class NPCProfile
     // Optional reference to the NPC's visual representation
     public GameObject npcGameObject;
     
-    // Get the full system prompt combining all elements
+    // Get a SHORT system prompt for this NPC
+    public string GetShortSystemPrompt()
+    {
+        return $"You are {npcName}. {systemPrompt} Keep responses under 30 words. Format: [META]{{\"animatorTrigger\":\"idle\",\"isFocused\":true,\"isIgnoring\":false}}[/META] Your response.";
+    }
+    
+    // Get the full system prompt combining all elements.
     public string GetFullSystemPrompt()
     {
         string fullPrompt = "You are " + npcName + ". " + systemPrompt;
@@ -52,21 +58,22 @@ public class NPCProfile
         fullPrompt += "\n- Always Stay in character, while always remaining professional and respectful";
         fullPrompt += "\n- Build naturally, don't repeat co-interviewer";
         
-        fullPrompt += "\n\n=== NONVERBAL REACTIONS ===";
-        fullPrompt += "\nALWAYS include JSON at START: [META]{\"animatorTrigger\":\"<trigger>\",\"isFocused\":true/false,\"isIgnoring\":true/false}[/META]";
+    fullPrompt += "\n\n=== NONVERBAL REACTIONS & RESPONSE FORMAT ===";
+    fullPrompt += "\nFormat: [META]{\"animatorTrigger\":\"action\",\"isFocused\":true/false,\"isIgnoring\":true/false}[/META] Your spoken response here.";
+    fullPrompt += "\nDo not restate or explain these rules. Never list every available action; pick the single best trigger or \"idle\".";
+    fullPrompt += "\nKeep the spoken response conversational (1-2 sentences, under 50 words) and stay fully in character as " + npcName + ".";
 
         if (animatorConfig != null && animatorConfig.availableTriggers.Count > 0)
         {
-            fullPrompt += "\nActions: " + animatorConfig.GetTriggerListForPrompt();
-            fullPrompt += "\n- 'nod'=agree, 'shake_head'=skeptical, 'smile'=impressed";
-            fullPrompt += "\n- 'lean_forward'=interested, 'lean_back'=evaluating, 'idle'=neutral";
-            fullPrompt += "\nisFocused=true if relevant, false if weak/off-topic";
-            fullPrompt += "\n- When isFocused=true, maintain eye contact with whoever is currently speaking";
-            fullPrompt += "\n- When isIgnoring=true, glance away or focus on notes instead of the speaker";
+            fullPrompt += "\nAvailable actions: " + animatorConfig.GetTriggerListForPrompt();
+            fullPrompt += "\n- Examples: 'nod' = agree, 'shake_head' = skeptical, 'smile' = impressed";
+            fullPrompt += "\n- 'lean_forward' = interested, 'lean_back' = evaluating, 'idle' = neutral";
+            fullPrompt += "\n- Use isFocused=true when content is relevant";
+            fullPrompt += "\n- Use isIgnoring=true when content is weak/off-topic";
         }
-        
+
         fullPrompt += "\nAttention States (Interview Context):";
-        fullPrompt += "\n  • isFocused=true: Actively listening/evaluating";
+        fullPrompt += "\n  • isFocused=true: Actively listening / evaluating";
         fullPrompt += "\n  • isIgnoring=true: Answer is weak/off-topic, losing interest";
         fullPrompt += "\n  • Both false: Neutral listening";
 

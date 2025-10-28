@@ -1,14 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using System.Threading;
 using UnityEngine;
 using TMPro;
 
 /// <summary>
 /// Tutorial Manager - simplified NPC for tutorial
 /// - Has its own Send method
-/// - No animator/context/personality prompts
+/// - Uses LlamaMemory for LLM responses
 /// - Doesn't broadcast to other NPCs
 /// - Shows "now loading..." until TTS output
 /// </summary>
@@ -22,18 +21,25 @@ public class TutorialManager : MonoBehaviour
     public GameObject objectToHideOnComplete; // Drag the Canvas/UI here
     
     [Header("Component References")]
-    public OllamaChatClient ollamaClient;
     public NPCTTSHandler ttsHandler;
     
     [Header("Instruction Messages")]
     public List<string> instructionMessages = new List<string>();
     
     private bool isCurrentlySpeaking = false;
-    private CancellationTokenSource cts;
+    private LlamaMemory llamaMemory;
 
     void Start()
     {
+        llamaMemory = LlamaMemory.Instance;
         InitializeComponents();
+        
+        // Register tutorial NPC profile system prompt
+        if (npcProfile != null)
+        {
+            string systemPrompt = npcProfile.GetFullSystemPrompt();
+            llamaMemory.RegisterNPCPrompt("Tutorial", systemPrompt);
+        }
         
         // Show initial instruction (index 0)
         if (instructionText && instructionMessages.Count > 0)
@@ -48,17 +54,6 @@ public class TutorialManager : MonoBehaviour
 
     private void InitializeComponents()
     {
-        // Auto-find OllamaClient
-        if (ollamaClient == null)
-        {
-            ollamaClient = FindObjectOfType<OllamaChatClient>();
-            if (ollamaClient == null)
-            {
-                Debug.LogError("TutorialManager: OllamaChatClient not found!");
-                return;
-            }
-        }
-
         // Setup TTS Handler
         if (ttsHandler == null)
         {
@@ -85,10 +80,10 @@ public class TutorialManager : MonoBehaviour
     /// <summary>
     /// Send message from UI input
     /// </summary>
-    public async void Send()
+    public void Send()
     {
         var userText = userInput != null ? userInput.text : "";
-        if (string.IsNullOrWhiteSpace(userText) || npcProfile == null || ollamaClient == null) 
+        if (string.IsNullOrWhiteSpace(userText) || npcProfile == null) 
             return;
 
         // Clear input
@@ -99,72 +94,85 @@ public class TutorialManager : MonoBehaviour
         if (instructionText && instructionMessages.Count > 1)
             instructionText.text = instructionMessages[1];
         
-        await ExecuteSpeech(userText);
+        ExecuteSpeech(userText);
     }
 
     /// <summary>
     /// Execute speech response
     /// </summary>
-    private async System.Threading.Tasks.Task ExecuteSpeech(string messageText)
+    private void ExecuteSpeech(string messageText)
     {
         if (isCurrentlySpeaking) return;
         
         isCurrentlySpeaking = true;
-        
-        cts?.Cancel();
-        cts = new CancellationTokenSource();
 
-        // Build simple prompt - ONLY system prompt, no context/personality/animator
-        string systemPrompt = npcProfile.systemPrompt;
-        if (string.IsNullOrEmpty(systemPrompt))
-        {
-            systemPrompt = "You are a helpful tutorial guide.";
-        }
-
-        var messages = new List<OllamaChatClient.ChatMessage>
-        {
-            new OllamaChatClient.ChatMessage { role = "system", content = systemPrompt },
-            new OllamaChatClient.ChatMessage { role = "user", content = messageText }
-        };
+        // Add user message to shared memory
+        llamaMemory.AddDialogueTurn("User", messageText);
 
         // Clear output
         if (outputText) outputText.text = "";
 
-        // Stream response with TTS buffering
-        var ttsBuffer = new StringBuilder();
-        var displayBuffer = new StringBuilder();
-        bool shouldStreamDisplay = !npcProfile.enableTTS;
-        
-        var response = await ollamaClient.SendChatAsync(
-            messages,
+        // Get LLM response from LlamaBridge
+        string fullPrompt = llamaMemory.BuildPromptForGeneration("Tutorial", 4);
+        string response = LlamaBridge.Instance.GenerateText(
+            fullPrompt,
             npcProfile.temperature,
             npcProfile.repeatPenalty,
-            null,
-            (token) => ProcessToken(token, ttsBuffer, displayBuffer, shouldStreamDisplay),
-            cts.Token
+            maxTokens: 256
         );
 
-        if (!string.IsNullOrEmpty(response.error))
+        if (string.IsNullOrEmpty(response))
         {
-            if (outputText) outputText.text = "Error: " + response.error;
+            if (outputText) outputText.text = "Error: No response from LLM";
             FinishSpeaking();
             return;
         }
 
-        // Process remaining TTS buffer
-        string fullDisplayText = displayBuffer.ToString();
-        ProcessRemainingTTS(ttsBuffer, fullDisplayText);
+        // Add response to shared memory
+        llamaMemory.AddDialogueTurn("Tutorial", response);
 
-        // Show empty state (index 2) while TTS plays
-        if (instructionText && instructionMessages.Count > 2)
-            instructionText.text = instructionMessages[2];
+        // Parse metadata and display text
+        var (metadata, displayText) = NPCMetadata.ProcessResponse(response);
+        
+        // Apply metadata if any
+        if (metadata != null)
+        {
+            // Tutorial is simple, so minimal metadata usage
+        }
 
-        // Wait for TTS to finish
+        // Display response
+        if (outputText) outputText.text = displayText;
+
+        // Queue TTS if enabled
         if (npcProfile.enableTTS && ttsHandler != null)
         {
-            while (ttsHandler.IsSpeaking())
-                await System.Threading.Tasks.Task.Delay(50, cts.Token);
+            ttsHandler.ProcessResponseForTTS(displayText);
+            
+            // Show empty state (index 2) while TTS plays
+            if (instructionText && instructionMessages.Count > 2)
+                instructionText.text = instructionMessages[2];
+            
+            // Wait for TTS to finish, then show final state
+            StartCoroutine(WaitForTTSAndFinish());
         }
+        else
+        {
+            // No TTS, show final message immediately
+            if (instructionText && instructionMessages.Count > 3)
+            {
+                instructionText.text = instructionMessages[3];
+            }
+            StartCoroutine(HideObjectAndFinish());
+        }
+    }
+
+    /// <summary>
+    /// Wait for TTS to finish speaking
+    /// </summary>
+    private System.Collections.IEnumerator WaitForTTSAndFinish()
+    {
+        while (ttsHandler != null && ttsHandler.IsSpeaking())
+            yield return new WaitForSeconds(0.05f);
 
         // AFTER TTS finishes, show final message (index 3)
         if (instructionText && instructionMessages.Count > 3)
@@ -172,78 +180,20 @@ public class TutorialManager : MonoBehaviour
             instructionText.text = instructionMessages[3];
         }
         
-        // Hide the object after brief pause
-        await System.Threading.Tasks.Task.Delay(2000);
+        yield return StartCoroutine(HideObjectAndFinish());
+    }
+
+    /// <summary>
+    /// Hide object after brief pause and finish speaking
+    /// </summary>
+    private System.Collections.IEnumerator HideObjectAndFinish()
+    {
+        yield return new WaitForSeconds(2f);
         if (objectToHideOnComplete != null)
         {
             objectToHideOnComplete.SetActive(false);
         }
-        
         FinishSpeaking();
-    }
-
-    /// <summary>
-    /// Process incoming tokens for TTS
-    /// </summary>
-    private void ProcessToken(string token, StringBuilder ttsBuffer, StringBuilder displayBuffer, bool shouldStreamDisplay = true)
-    {
-        foreach (char c in token)
-        {
-            displayBuffer.Append(c);
-            
-            // TTS processing
-            if (npcProfile.enableTTS && ttsHandler != null)
-            {
-                ttsBuffer.Append(c);
-                
-                // Process on sentence endings
-                if (c == '.' || c == '!' || c == '?' || (ttsBuffer.Length > 60 && c == ','))
-                {
-                    string chunk = ttsBuffer.ToString().Trim();
-                    if (chunk.Length > 0)
-                    {
-                        string currentDisplayText = displayBuffer.ToString();
-                        ttsHandler.EnqueueSpeech(chunk, () => 
-                        {
-                            if (outputText && !shouldStreamDisplay)
-                            {
-                                outputText.text = currentDisplayText;
-                            }
-                        });
-                        ttsBuffer.Clear();
-                    }
-                }
-            }
-        }
-        
-        // Update UI if streaming display
-        if (shouldStreamDisplay && outputText) 
-            outputText.text = displayBuffer.ToString();
-    }
-
-    /// <summary>
-    /// Process remaining TTS buffer
-    /// </summary>
-    private void ProcessRemainingTTS(StringBuilder ttsBuffer, string fullDisplayText)
-    {
-        if (npcProfile.enableTTS && ttsHandler != null && ttsBuffer.Length > 0)
-        {
-            string chunk = ttsBuffer.ToString().Trim();
-            if (chunk.Length > 0)
-            {
-                ttsHandler.EnqueueSpeech(chunk, () => 
-                {
-                    if (outputText) 
-                    {
-                        outputText.text = fullDisplayText;
-                    }
-                });
-            }
-        }
-        else if (!npcProfile.enableTTS || ttsHandler == null)
-        {
-            if (outputText) outputText.text = fullDisplayText;
-        }
     }
 
     /// <summary>
