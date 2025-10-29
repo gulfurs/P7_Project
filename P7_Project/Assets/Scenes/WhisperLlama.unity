@@ -164,7 +164,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 70438b44acfc31e4e89babcd7aa6e8b2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  modelFileName: ggml-tiny.bin
+  modelFileName: ggml-large.bin
   chunkDuration: 3
   audioSource: {fileID: 360766801}
   llamaManager: {fileID: 520029211}
