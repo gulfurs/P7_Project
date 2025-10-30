@@ -1,33 +1,33 @@
 fileFormatVersion: 2
-guid: 5504323041c3cf04b8ac103e554cc635
+guid: 532970903779f364481421cf90f7f72b
 PluginImporter:
   externalObjects: {}
   serializedVersion: 3
   iconMap: {}
   executionOrder: {}
   defineConstraints: []
-  isPreloaded: 0
+  isPreloaded: 1
   isOverridable: 0
   isExplicitlyReferenced: 0
   validateReferences: 1
   platformData:
     Android:
-      enabled: 1
+      enabled: 0
       settings:
         AndroidLibraryDependee: UnityLibrary
         AndroidSharedLibraryType: Executable
         CPU: ARMv7
     Any:
-      enabled: 1
+      enabled: 0
       settings:
-        Exclude Android: 0
+        Exclude Android: 1
         Exclude Editor: 0
         Exclude Linux64: 0
         Exclude OSXUniversal: 0
         Exclude Win: 0
         Exclude Win64: 0
-        Exclude WindowsStoreApps: 0
-        Exclude iOS: 0
+        Exclude WindowsStoreApps: 1
+        Exclude iOS: 1
     Editor:
       enabled: 1
       settings:
@@ -37,7 +37,7 @@ PluginImporter:
     Linux64:
       enabled: 1
       settings:
-        CPU: x86_64
+        CPU: None
     OSXUniversal:
       enabled: 1
       settings:
@@ -45,13 +45,13 @@ PluginImporter:
     Win:
       enabled: 1
       settings:
-        CPU: x86
+        CPU: None
     Win64:
       enabled: 1
       settings:
         CPU: x86_64
     WindowsStoreApps:
-      enabled: 1
+      enabled: 0
       settings:
         CPU: AnyCPU
         DontProcess: false
@@ -59,7 +59,7 @@ PluginImporter:
         SDK: AnySDK
         ScriptingBackend: AnyScriptingBackend
     iOS:
-      enabled: 1
+      enabled: 0
       settings:
         AddToEmbeddedBinaries: false
         CPU: AnyCPU

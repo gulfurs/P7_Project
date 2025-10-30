@@ -3,19 +3,21 @@ using System.Collections;
 
 public class WhisperContinuous : MonoBehaviour
 {
-    public string modelFileName = "ggml-tiny.bin";
-    public float chunkDuration = 3f; // seconds per chunk
+    public string modelFileName = "ggml-large.bin";
+    public float chunkDuration = 3f; 
     public AudioSource audioSource;
+
     private string modelPath;
     private string micDevice;
 
-    public LlamaManager llamaManager;
-
+    [Header("Connections")]
+    public LlamaController llamaController; 
 
     void Start()
     {
         modelPath = Application.streamingAssetsPath + "/Whisper/" + modelFileName;
         Debug.Log("[Whisper] Loading model: " + modelPath);
+
         if (!WWhisperManager.InitModel(modelPath))
         {
             Debug.LogError("[Whisper] Model failed to load!");
@@ -37,6 +39,7 @@ public class WhisperContinuous : MonoBehaviour
     {
         while (true)
         {
+            // Record a short chunk
             AudioClip clip = Microphone.Start(micDevice, false, (int)chunkDuration, 16000);
             yield return new WaitForSeconds(chunkDuration);
             Microphone.End(micDevice);
@@ -44,7 +47,7 @@ public class WhisperContinuous : MonoBehaviour
             string path = Application.persistentDataPath + "/mic_chunk.wav";
             SaveWav(path, clip);
 
-            // Whisper inference
+            // Run Whisper on this chunk
             string result = WWhisperManager.TranscribePartial(path);
 
             if (!string.IsNullOrWhiteSpace(result) && result != "[BLANK_AUDIO]")
@@ -53,13 +56,14 @@ public class WhisperContinuous : MonoBehaviour
                 {
                     Debug.Log($"[Whisper Result] {result}");
 
-                    if (llamaManager != null)
+                    if (llamaController != null)
                     {
-                        llamaManager.SendPrompt(result);
+                        //  Send recognized speech directly to Llama
+                        llamaController.GenerateReply(result);
                     }
                     else
                     {
-                        Debug.LogWarning("[Whisper to LLaMA] No LlamaManager assigned!");
+                        Debug.LogWarning("[Whisper?LLaMA] No LlamaController linked!");
                     }
                 });
             }
