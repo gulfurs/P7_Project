@@ -7,16 +7,37 @@ using System.Threading.Tasks;
 using UnityEngine;
 using TMPro;
 
+/// <summary>
+/// [DEPRECATED] Ollama API Client - Being phased out in favor of local GGUF inference
+/// This class is maintained for backward compatibility but should not be used in new code.
+/// Use LlamaBridge for local inference with GGUF models instead.
+/// </summary>
+[System.Obsolete("OllamaChatClient is deprecated. Use LlamaBridge for local GGUF inference instead.", false)]
 public class OllamaChatClient : MonoBehaviour
 {
-    [Header("Ollama Connection")]
+    [Header("Ollama Connection [DEPRECATED - Use LlamaBridge instead]")]
     public string endpoint = "http://localhost:11434/api/chat";
-    public string model = "qwen3:4b-instruct-2507-q4_K_M";
+    [Tooltip("Override model name (leave empty to use LLMConfig default)")]
+    public string model = ""; // Will use LLMConfig if empty
     [Range(0.1f, 1.0f)]
     public float topP = 0.9f;
     [Range(64, 512)]
     public int maxTokens = 150;
+    
+    private void Start()
+    {
+        Debug.LogWarning("[OllamaChatClient] This class is deprecated. Consider migrating to LlamaBridge for local GGUF inference.");
+        
+        // Load defaults from LLMConfig if not explicitly set
+        if (string.IsNullOrEmpty(model))
+        {
+            var config = LLMConfig.Instance;
+            model = config.modelName;
+            Debug.Log($"[OllamaChatClient] Using model name from LLMConfig: {model}");
+        }
+    }
 
+    
     private static readonly HttpClient http = new HttpClient();
 
     [Serializable] 

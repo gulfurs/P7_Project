@@ -4,80 +4,86 @@ using System;
 [Serializable]
 public class NPCProfile
 {
+    [Header("Identity")]
     public string npcName;
     
-    [TextArea(3, 6)]
-    public string systemPrompt;
+    [Header("Role & Expertise")]
+    [TextArea(2, 4)] public string role;
+    [TextArea(2, 4)] public string expertise;
     
-    [TextArea(3, 6)]
-    public string contextPrompt;
+    [Header("Personality")]
+    [TextArea(2, 4)] public string personalityTraits;
     
-    [TextArea(2, 4)]
-    public string personalityTraits;
-    
-    // LLM parameters for this specific NPC
-    [Range(0.1f, 2.0f)]
-    public float temperature = 0.7f;
-    
-    [Range(1.0f, 1.5f)]
-    public float repeatPenalty = 1.1f;
+    [Header("LLM Parameters")]
+    [Range(0.1f, 2.0f)] public float temperature = 0.7f;
+    [Range(1.0f, 1.5f)] public float repeatPenalty = 1.1f;
     
     [Header("TTS Settings")]
-    public string voiceName = "en_US-lessac-medium"; // Piper voice model name
+    public string voiceName = "en_US-lessac-medium";
     public bool enableTTS = true;
     public AudioSource audioSource;
     
-    [Header("Animator & Non-Verbal Actions")]
+    [Header("Non-Verbal Behavior")]
     public NPCAnimatorConfig animatorConfig;
-    
-    // Optional reference to the NPC's visual representation
     public GameObject npcGameObject;
     
-    // Get a SHORT system prompt for this NPC
+    /// <summary>
+    /// Get a SHORT system prompt for quick responses (used for decision-making)
+    /// </summary>
     public string GetShortSystemPrompt()
     {
-        return $"You are {npcName}. {systemPrompt} Keep responses under 30 words. Format: [META]{{\"animatorTrigger\":\"idle\",\"isFocused\":true,\"isIgnoring\":false}}[/META] Your response.";
+        return $"You are {npcName}, {role}. Keep responses under 30 words. " +
+               $"Format: [META]{{\"animatorTrigger\":\"idle\",\"isFocused\":true,\"isIgnoring\":false}}[/META] Your response.";
     }
     
-    // Get the full system prompt combining all elements.
+    /// <summary>
+    /// Get the full system prompt for this interviewer NPC
+    /// Core roleplaying instructions are defined at the LLM root level
+    /// This adds NPC-specific personality and expertise
+    /// </summary>
     public string GetFullSystemPrompt()
     {
-        string fullPrompt = "You are " + npcName + ". " + systemPrompt;
+        var prompt = new System.Text.StringBuilder();
         
-        if (!string.IsNullOrEmpty(contextPrompt))
-            fullPrompt += "\n\nContext: " + contextPrompt;
+        // Core identity
+        prompt.AppendLine($"You are {npcName}.");
+        prompt.AppendLine($"Role: {role}");
+        
+        if (!string.IsNullOrEmpty(expertise))
+            prompt.AppendLine($"Expertise: {expertise}");
             
         if (!string.IsNullOrEmpty(personalityTraits))
-            fullPrompt += "\n\nPersonality: " + personalityTraits;
+            prompt.AppendLine($"Personality: {personalityTraits}");
         
-        fullPrompt += "\n\n=== INTERVIEW DYNAMICS ===";
-        fullPrompt += "\nMulti-party interview: You, your co-interviewer, candidate.";
-        fullPrompt += "\n- Stay professional and realistic; speak like a human interviewer";
-        fullPrompt += "\n- ONE question at a time, keep under 50 words";
-        fullPrompt += "\n- Use YOUR expertise to decide topic relevance";
-        fullPrompt += "\n- Always Stay in character, while always remaining professional and respectful";
-        fullPrompt += "\n- Build naturally, don't repeat co-interviewer";
+        // Interview context (simplified - core rules come from LLMConfig)
+        prompt.AppendLine("\n=== YOUR ROLE ===");
+        prompt.AppendLine("You are conducting a multi-party job interview alongside a co-interviewer.");
+        prompt.AppendLine("- Ask ONE focused question at a time (under 50 words)");
+        prompt.AppendLine("- Stay in character as a professional interviewer");
+        prompt.AppendLine("- Evaluate answers based on YOUR expertise");
+        prompt.AppendLine("- Don't repeat what your co-interviewer just asked");
         
-    fullPrompt += "\n\n=== NONVERBAL REACTIONS & RESPONSE FORMAT ===";
-    fullPrompt += "\nFormat: [META]{\"animatorTrigger\":\"action\",\"isFocused\":true/false,\"isIgnoring\":true/false}[/META] Your spoken response here.";
-    fullPrompt += "\nDo not restate or explain these rules. Never list every available action; pick the single best trigger or \"idle\".";
-    fullPrompt += "\nKeep the spoken response conversational (1-2 sentences, under 50 words) and stay fully in character as " + npcName + ".";
-
+        // Non-verbal behavior instructions
+        prompt.AppendLine("\n=== INTERNAL METADATA (NOT SPOKEN) ===");
+        prompt.AppendLine("Your responses MUST start with metadata, then your spoken words:");
+        prompt.AppendLine("Format: [META]{\"animatorTrigger\":\"action\",\"isFocused\":true/false,\"isIgnoring\":false/true}[/META] Your spoken words here.");
+        
         if (animatorConfig != null && animatorConfig.availableTriggers.Count > 0)
         {
-            fullPrompt += "\nAvailable actions: " + animatorConfig.GetTriggerListForPrompt();
-            fullPrompt += "\n- Examples: 'nod' = agree, 'shake_head' = skeptical, 'smile' = impressed";
-            fullPrompt += "\n- 'lean_forward' = interested, 'lean_back' = evaluating, 'idle' = neutral";
-            fullPrompt += "\n- Use isFocused=true when content is relevant";
-            fullPrompt += "\n- Use isIgnoring=true when content is weak/off-topic";
+            prompt.AppendLine($"\nAvailable non-verbal actions: {animatorConfig.GetTriggerListForPrompt()}");
+            prompt.AppendLine("• nod = agreement/encouragement, shake_head = skepticism/concern");
+            prompt.AppendLine("• lean_forward = high interest, lean_back = evaluating critically");
+            prompt.AppendLine("• smile = impressed/positive, eye_roll = weak response, idle = neutral");
         }
+        
+        prompt.AppendLine("\nAttention states (gaze direction - internal only):");
+        prompt.AppendLine("• isFocused=true → Looking at speaker attentively");
+        prompt.AppendLine("• isIgnoring=true → Looking away (weak/off-topic answer)");
+        prompt.AppendLine("• Both false → Neutral listening posture");
+        
+        prompt.AppendLine("\nIMPORTANT: Only your spoken words after [/META] will be heard. Keep them natural and under 50 words.");
 
-        fullPrompt += "\nAttention States (Interview Context):";
-        fullPrompt += "\n  • isFocused=true: Actively listening / evaluating";
-        fullPrompt += "\n  • isIgnoring=true: Answer is weak/off-topic, losing interest";
-        fullPrompt += "\n  • Both false: Neutral listening";
-
-        return fullPrompt;
+        return prompt.ToString();
     }
 }
 

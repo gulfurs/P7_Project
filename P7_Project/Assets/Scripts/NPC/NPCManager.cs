@@ -1,6 +1,11 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+/// <summary>
+/// NPC Manager - Central coordinator for all interview agents
+/// Manages NPC instances, gaze targets, and global settings
+/// Handles message broadcasting between NPCs
+/// </summary>
 public class NPCManager : MonoBehaviour
 {
     [Header("NPC Instances")]

@@ -4,8 +4,9 @@ using UnityEngine;
 using TMPro;
 
 /// <summary>
-/// Main NPC chat instance - cleaner with delegated responsibilities
-/// Directly references NPCProfile for system prompts
+/// NPC Chat Instance - Job Interview Agent
+/// Handles conversation, turn-taking, and non-verbal behaviors
+/// Uses LLMConfig for core roleplaying instructions
 /// </summary>
 public class NPCChatInstance : MonoBehaviour
 {
@@ -51,27 +52,30 @@ public class NPCChatInstance : MonoBehaviour
 
     private void InitializeComponents()
     {
-        // Auto-find LlamaBridge
+        // Auto-find LlamaBridge if not assigned
         if (llamaBridge == null)
         {
             llamaBridge = FindObjectOfType<LlamaBridge>();
             if (llamaBridge == null)
             {
-                Debug.LogError($"NPCChatInstance '{gameObject.name}' needs a LlamaBridge!");
+                Debug.LogError($"[NPCChat] '{gameObject.name}' needs a LlamaBridge in the scene!");
                 return;
             }
         }
 
-        // Get LlamaMemory
+        // Get shared LlamaMemory
         if (llamaMemory == null)
         {
             llamaMemory = LlamaMemory.Instance;
         }
 
-        // Register this NPC's system prompt
+        // Register this NPC's system prompt using LLMConfig
         if (npcProfile != null)
         {
-            llamaMemory.RegisterNPCPrompt(npcProfile.npcName, npcProfile.GetFullSystemPrompt());
+            var config = LLMConfig.Instance;
+            string fullSystemPrompt = config.GetSystemPromptForNPC(npcProfile);
+            llamaMemory.RegisterNPCPrompt(npcProfile.npcName, fullSystemPrompt);
+            Debug.Log($"[NPCChat] Registered {npcProfile.npcName} with full system prompt");
         }
 
         // Setup TTS Handler
@@ -93,7 +97,6 @@ public class NPCChatInstance : MonoBehaviour
                 }
             }
             
-            // Initialize TTS handler with audio source and voice
             ttsHandler.Initialize(npcProfile.audioSource, npcProfile.voiceName);
         }
     }
@@ -157,11 +160,11 @@ public class NPCChatInstance : MonoBehaviour
     }
     
     /// <summary>
-    /// Ask the LLM itself whether this NPC should ask a follow-up
+    /// Ask the LLM whether this NPC should respond to the candidate's answer
+    /// Uses a simple decision prompt for turn-taking
     /// </summary>
     public void AskLLMIfShouldRespond(string userAnswer)
     {
-        // Run the decision process in a coroutine to stagger NPCs and avoid simultaneous model calls
         if (!enableAutoResponse || isCurrentlySpeaking)
             return;
 
@@ -170,7 +173,7 @@ public class NPCChatInstance : MonoBehaviour
 
     private System.Collections.IEnumerator AskLLMIfShouldRespondRoutine(string userAnswer)
     {
-        // Small random delay to stagger multiple NPCs and make conversation natural
+        // Stagger responses to make conversation feel natural
         float delay = UnityEngine.Random.Range(0.05f, 0.35f);
         yield return new WaitForSeconds(delay);
 
@@ -179,20 +182,21 @@ public class NPCChatInstance : MonoBehaviour
 
         if (llamaBridge == null)
         {
-            Debug.LogError("[NPCChat] LlamaBridge reference missing for decision call.");
+            Debug.LogError("[NPCChat] LlamaBridge missing for decision call.");
             yield break;
         }
 
-        // If someone already has the turn, don't bother
+        // Don't interrupt if someone already has the turn
         if (DialogueManager.Instance != null && !string.IsNullOrEmpty(DialogueManager.Instance.currentSpeaker))
             yield break;
 
-        // Build decision prompt inline - ULTRA simple with explicit instruction
-        string decisionPrompt = $"Question: Should {npcProfile.npcName} respond to the candidate saying \"{userAnswer}\"?\nAnswer with only YES or NO: ";
+        // Simple decision prompt - should this NPC respond?
+        string decisionPrompt = $"Should {npcProfile.npcName} ask a follow-up question about: \"{userAnswer}\"?\nAnswer YES or NO: ";
 
-        // Queue the decision request to avoid overlapping native calls
+        // Queue the decision through the bridge
         string decisionRaw = string.Empty;
         bool decisionDone = false;
+        
         llamaBridge.EnqueueGenerate(decisionPrompt, 0.5f, 1.0f, 16,
             (res) =>
             {
@@ -204,40 +208,28 @@ public class NPCChatInstance : MonoBehaviour
 
         string response = decisionRaw.ToLower();
 
-        // If the model produced an error or empty output, treat as 'no'
-        if (response.Contains("error") || response.Contains("llama_decode") || response.Contains("[error:") || response.Length == 0)
+        // Error handling - treat errors as 'no'
+        if (response.Contains("error") || response.Contains("llama_decode") || response.Length == 0)
         {
-            Debug.LogWarning($"[NPCChat] Decision call produced error for {npcProfile.npcName}: {response}");
+            Debug.LogWarning($"[NPCChat] Decision error for {npcProfile.npcName}: {response}");
             yield break;
         }
 
-        // Look for explicit yes/no in the response
+        // Parse YES/NO from response
         bool wantsToSpeak = false;
         
-        // Check for YES first (more specific)
         if (System.Text.RegularExpressions.Regex.IsMatch(response, @"\byes\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
         {
             wantsToSpeak = true;
         }
-        // If model outputs garbage (code, etc), default to NO
-        else if (response.Contains("```") || response.Contains("def ") || response.Contains("python") || response.Contains("function"))
+        else if (response.Contains("```") || response.Contains("def ") || response.Contains("python"))
         {
-            Debug.LogWarning($"[NPCChat] Model outputted code/garbage for {npcProfile.npcName}, treating as NO");
-            wantsToSpeak = false;
-        }
-        // Explicit NO
-        else if (System.Text.RegularExpressions.Regex.IsMatch(response, @"\bno\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
-        {
-            wantsToSpeak = false;
-        }
-        // Anything unclear defaults to NO
-        else
-        {
-            Debug.LogWarning($"[NPCChat] Unclear response from {npcProfile.npcName}: {response.Substring(0, Mathf.Min(50, response.Length))}");
+            // Model output garbage - treat as NO
+            Debug.LogWarning($"[NPCChat] Garbage output from {npcProfile.npcName}, treating as NO");
             wantsToSpeak = false;
         }
 
-        Debug.Log($"🤖 {npcProfile.npcName} LLM decision: {response.Substring(0, Mathf.Min(80, response.Length))}... → {(wantsToSpeak ? "RESPOND" : "PASS")}");
+        Debug.Log($"🤖 {npcProfile.npcName} decision: {response.Substring(0, Mathf.Min(80, response.Length))}... → {(wantsToSpeak ? "RESPOND" : "PASS")}");
 
         // Check with DialogueManager for forcing rules
         bool shouldRespond = wantsToSpeak;
@@ -248,17 +240,17 @@ public class NPCChatInstance : MonoBehaviour
 
         if (shouldRespond)
         {
-            // Request turn and generate actual response
+            // Request turn and generate actual interview question
             if (DialogueManager.Instance != null && DialogueManager.Instance.RequestTurn(npcProfile.npcName))
             {
-                // Start the speech coroutine which will enqueue the prompt through the bridge
                 StartCoroutine(ExecuteSpeechRoutine(userAnswer));
             }
         }
     }
     
     /// <summary>
-    /// Internal method to execute the actual speech
+    /// Execute speech generation with metadata extraction
+    /// Generates interview question with non-verbal behaviors
     /// </summary>
     private System.Collections.IEnumerator ExecuteSpeechRoutine(string messageText)
     {
@@ -273,35 +265,40 @@ public class NPCChatInstance : MonoBehaviour
             yield break;
         }
 
-        // Get the NPC's system prompt directly from their profile
-        string systemPrompt = npcProfile.GetFullSystemPrompt();
-
-        // Get conversation history from shared memory
+        // Get shared memory
         if (llamaMemory == null)
             llamaMemory = LlamaMemory.Instance;
         
-        string conversationHistory = llamaMemory.GetShortTermContext(2); // Only last 2 turns
+        // Get recent conversation context (last 2 turns)
+        string conversationHistory = llamaMemory.GetShortTermContext(2);
 
         string response = string.Empty;
         bool done = false;
 
-        // Build MINIMAL prompt: Short system + recent history + NPC name
+        // Build minimal prompt: Short system + recent history + NPC name
         var promptBuilder = new System.Text.StringBuilder();
         promptBuilder.Append(npcProfile.GetShortSystemPrompt()).Append("\n\n");
         
-        // Add recent conversation
         if (!string.IsNullOrEmpty(conversationHistory))
             promptBuilder.Append(conversationHistory).Append("\n");
 
-        // NPC continues
         promptBuilder.Append(npcProfile.npcName).Append(": ");
 
         string fullPrompt = promptBuilder.ToString();
 
-        // Enqueue prompt via bridge
-        llamaBridge.EnqueueGenerate(fullPrompt, npcProfile.temperature, npcProfile.repeatPenalty, 64, (res) => { response = (res ?? string.Empty).Trim(); done = true; });
+        // Enqueue generation via bridge (thread-safe)
+        llamaBridge.EnqueueGenerate(
+            fullPrompt, 
+            npcProfile.temperature, 
+            npcProfile.repeatPenalty, 
+            64, 
+            (res) => 
+            { 
+                response = (res ?? string.Empty).Trim(); 
+                done = true; 
+            });
 
-        // Wait until the request completes
+        // Wait for completion
         yield return new WaitUntil(() => done);
 
         if (string.IsNullOrEmpty(response))
@@ -311,49 +308,55 @@ public class NPCChatInstance : MonoBehaviour
             yield break;
         }
 
-        // Extract metadata and clean display text
-        string originalResponse = response;
+        // Extract metadata (non-verbal actions) and spoken text
         var (metadata, displayText) = NPCMetadata.ProcessResponse(response);
 
-        // If the model didn't include metadata at the start, give it one retry with a short format reminder
+        // Validate metadata - if missing, use defaults
         if (!response.TrimStart().StartsWith("[META]", StringComparison.Ordinal))
         {
             Debug.LogWarning($"[NPCChat] Response missing metadata block for {npcProfile.npcName}. Using defaults.");
-            // Use default metadata instead of retry
             metadata = new NPCMetadata { animatorTrigger = "idle", isFocused = true, isIgnoring = false };
         }
 
-        // Clean spoken text: remove assistant/user labels, code fences, and collapse repeated whitespace
+        // Clean spoken text - remove role labels, code fences, etc.
         if (!string.IsNullOrEmpty(displayText))
         {
-            // Remove common role prefixes like 'Assistant:' or 'User:' at line starts
-            displayText = System.Text.RegularExpressions.Regex.Replace(displayText, @"(?m)^(assistant\s*:|assistant:|user\s*:|user:)\s*", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-            // Remove any remaining code fences
+            // Remove role prefixes
+            displayText = System.Text.RegularExpressions.Regex.Replace(
+                displayText, 
+                @"(?m)^(assistant\s*:|assistant:|user\s*:|user:)\s*", 
+                "", 
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            
+            // Remove code fences
             displayText = displayText.Replace("```", "");
-            // Strip a leading "Name:" prefix if present
+            
+            // Strip NPC name prefix if present
             if (displayText.StartsWith(npcProfile.npcName + ":", StringComparison.OrdinalIgnoreCase))
             {
                 int colon = displayText.IndexOf(":");
                 if (colon >= 0 && colon + 1 < displayText.Length)
                     displayText = displayText.Substring(colon + 1).TrimStart();
             }
-            // Collapse multiple newlines and trim
+            
+            // Collapse multiple newlines
             displayText = System.Text.RegularExpressions.Regex.Replace(displayText, "\n{2,}", "\n").Trim();
         }
 
-        // Update UI with clean text only
+        // Update UI with clean spoken text only
         if (outputText)
             outputText.text = displayText;
 
         // Execute metadata (animations, attention state, gaze)
+        // IMPORTANT: These are internal behaviors, NOT spoken
         ExecuteMetadata(metadata);
 
-        // Decide whether the output is an error (don't TTS error strings)
+        // Check if output is an error (don't TTS errors)
         bool isErrorOutput = false;
         if (!string.IsNullOrEmpty(displayText))
         {
             var low = displayText.ToLowerInvariant();
-            if (low.Contains("error") || low.Contains("llama_decode") || low.StartsWith("[error:") )
+            if (low.Contains("error") || low.Contains("llama_decode") || low.StartsWith("[error:"))
                 isErrorOutput = true;
         }
 
@@ -362,7 +365,7 @@ public class NPCChatInstance : MonoBehaviour
         {
             try
             {
-                // Limit TTS length to first sentence/300 chars to improve responsiveness
+                // Limit TTS to first sentence or 300 chars
                 string ttsText = displayText ?? string.Empty;
                 if (ttsText.Length > 300)
                 {
@@ -381,11 +384,11 @@ public class NPCChatInstance : MonoBehaviour
             }
         }
 
-        // Store the spoken text in memory (or a short error message)
+        // Store spoken text in shared memory
         string memoryText = isErrorOutput ? "[LLM ERROR]" : (displayText ?? string.Empty);
         llamaMemory.AddDialogueTurn(npcProfile.npcName, memoryText);
-        Debug.Log($"[NPCChat] Raw LLM response: {response}");
         
+        Debug.Log($"[NPCChat] {npcProfile.npcName} spoke: \"{displayText}\"");
         LogMemoryState();
 
         FinishSpeaking();
@@ -405,43 +408,59 @@ public class NPCChatInstance : MonoBehaviour
 
     /// <summary>
     /// Execute metadata actions (animations, attention, gaze)
+    /// IMPORTANT: These are internal non-verbal behaviors, not spoken
     /// </summary>
     private void ExecuteMetadata(NPCMetadata metadata)
     {
         if (metadata == null || npcProfile.animatorConfig == null)
             return;
         
+        // Trigger animation if specified
         if (!string.IsNullOrEmpty(metadata.animatorTrigger))
+        {
             npcProfile.animatorConfig.TriggerAnimation(metadata.animatorTrigger);
+            Debug.Log($"🎭 {npcProfile.npcName} non-verbal: {metadata.animatorTrigger}");
+        }
 
-        string currentSpeaker = DialogueManager.Instance != null ? DialogueManager.Instance.currentSpeaker : string.Empty;
+        // Determine gaze target based on attention state
+        string currentSpeaker = DialogueManager.Instance != null 
+            ? DialogueManager.Instance.currentSpeaker 
+            : string.Empty;
+            
         bool isSelfSpeaking = !string.IsNullOrEmpty(currentSpeaker) && currentSpeaker == npcProfile.npcName;
         Transform focusTarget = null;
 
         var manager = NPCManager.Instance;
         if (manager != null)
         {
+            // If speaking, look at user; otherwise look at current speaker
             focusTarget = isSelfSpeaking
                 ? manager.GetLookTargetForSpeaker("User")
                 : manager.GetLookTargetForSpeaker(currentSpeaker);
 
+            // Fallback to neutral look target
             if (focusTarget == null && npcProfile?.animatorConfig != null)
                 focusTarget = npcProfile.animatorConfig.neutralLookTarget;
         }
 
+        // Apply metadata to animator config (sets attention state and gaze)
         npcProfile.animatorConfig.ApplyMetadata(metadata, focusTarget);
+        
+        Debug.Log($"👁️ {npcProfile.npcName} attention: focused={metadata.isFocused}, ignoring={metadata.isIgnoring}");
     }
 
     /// <summary>
-    /// Receive message from another NPC - INTERVIEWERS DON'T RESPOND TO EACH OTHER
+    /// Receive message from another NPC
+    /// In interview mode, interviewers don't respond to each other - only to candidates
     /// </summary>
     public void ReceiveExternalMessage(string senderName, string message)
     {
         if (llamaMemory == null)
             llamaMemory = LlamaMemory.Instance;
+            
         llamaMemory.AddDialogueTurn(senderName, message);
-        Debug.Log($"📨 [{npcProfile.npcName}] Heard {senderName} (not responding - interviewer mode)");
-        // Interviewers don't respond to each other, only to user
+        Debug.Log($"📨 [{npcProfile.npcName}] Heard {senderName} (interview mode - no cross-talk)");
+        // Interviewers listen but don't respond to each other
     }
 
     /// <summary>

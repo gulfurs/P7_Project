@@ -4,22 +4,30 @@ using UnityEngine;
 
 /// <summary>
 /// Attention state for NPC focus and engagement
+/// These states control gaze direction and are NOT spoken by the NPC
 /// </summary>
 public enum AttentionState
 {
     Idle,      // Neutral, no specific focus
-    Focused,   // Actively paying attention
-    Ignoring   // Actively disengaged or ignoring
+    Focused,   // Actively paying attention (looking at speaker)
+    Ignoring   // Actively disengaged or ignoring (looking away)
 }
 
 /// <summary>
 /// Metadata structure for NPC non-verbal actions and behaviors
+/// This data is extracted from LLM output and processed internally
+/// IMPORTANT: None of this metadata is spoken - only used for animations and gaze
 /// </summary>
 [Serializable]
 public class NPCMetadata
 {
+    [Tooltip("Animation trigger name (e.g., 'nod', 'shake_head', 'smile')")]
     public string animatorTrigger = "";
+    
+    [Tooltip("True = NPC is focused on speaker, False = neutral")]
     public bool isFocused = false;
+    
+    [Tooltip("True = NPC is ignoring/disengaged, False = neutral")]
     public bool isIgnoring = false;
     
     private const string MetadataOpenTag = "[META]";
@@ -29,6 +37,9 @@ public class NPCMetadata
     /// Extract metadata and clean display text from LLM response.
     /// Enforces that metadata must appear at the very start of the response.
     /// Returns default metadata if parsing fails.
+    /// 
+    /// IMPORTANT: The metadata is for internal use only (animations/gaze).
+    /// Only the cleaned display text should be shown/spoken to the user.
     /// </summary>
     public static (NPCMetadata metadata, string displayText) ProcessResponse(string response)
     {
