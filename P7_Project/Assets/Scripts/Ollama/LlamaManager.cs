@@ -15,11 +15,16 @@ public class LlamaManager : MonoBehaviour
         if (!bridge) { Debug.LogError("[LlamaManager] No LlamaBridge!"); return; }
         if (!memory) memory = LlamaMemory.Instance;
 
-        if (string.IsNullOrEmpty(modelPath))
-            modelPath = LLMConfig.Instance.modelPath;
-        
-        bridge.modelPath = modelPath;
-        bridge.Initialize();
+        // Don't initialize here if LlamaBridge will initialize itself
+        // LlamaBridge.Start() already calls Initialize()
+        if (string.IsNullOrEmpty(bridge.modelPath))
+        {
+            if (string.IsNullOrEmpty(modelPath))
+                modelPath = LLMConfig.Instance.modelPath;
+            
+            bridge.modelPath = modelPath;
+            // Bridge will initialize itself in its Start() method
+        }
     }
 
     public void SendPrompt(string userPrompt)

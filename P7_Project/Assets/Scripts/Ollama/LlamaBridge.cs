@@ -51,11 +51,20 @@ public class LlamaBridge : MonoBehaviour
         if (string.IsNullOrEmpty(modelPath))
             modelPath = LLMConfig.Instance.modelPath;
         
-        Initialize();
+        // Only initialize if not already initialized
+        if (ctx == IntPtr.Zero)
+            Initialize();
     }
 
     public void Initialize()
     {
+        // Prevent double initialization
+        if (ctx != IntPtr.Zero)
+        {
+            Debug.LogWarning("[LlamaBridge] Already initialized, skipping.");
+            return;
+        }
+
         ctx = llama_init_from_file(modelPath);
         if (ctx == IntPtr.Zero)
         {

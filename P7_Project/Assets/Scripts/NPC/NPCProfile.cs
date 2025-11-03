@@ -32,8 +32,7 @@ public class NPCProfile
     /// </summary>
     public string GetShortSystemPrompt()
     {
-        return $"You are {npcName}, {role}. Keep responses under 30 words. " +
-               $"Format: [META]{{\"animatorTrigger\":\"idle\",\"isFocused\":true,\"isIgnoring\":false}}[/META] Your response.";
+        return $"You are {npcName}. Ask a brief interview question (under 30 words).";
     }
     
     /// <summary>

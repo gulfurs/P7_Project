@@ -1444,8 +1444,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   bridge: {fileID: 524202519}
-  modelPath: Assets/StreamingAssets/models/llama2888.gguf
   memory: {fileID: 524202518}
+  modelPath: Assets/StreamingAssets/models/llama2888.gguf
 --- !u!114 &524202518
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1458,7 +1458,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f70dcc1733db8e24db6239098ad5d347, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  conversationPreview: 
 --- !u!114 &524202519
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1810,7 +1809,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &812325951
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2264,16 +2263,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::NPCChatInstance
   npcProfile:
     npcName: epiclonewolf
-    systemPrompt: You are an HR Lead with 8 years of experience in talent acquisition.
-      Your role is to assess cultural fit, communication skills, and interpersonal
-      abilities. You create a welcoming atmosphere and focus on behavioral questions
-      to understand how candidates work with others. You believe people are the heart
-      of any organization.
-    contextPrompt: You're conducting a behavioral interview for a mid-level position.
-      Your company values collaboration, empathy, and work-life balance. You're looking
-      for someone who will thrive in a team-oriented environment. You partner with
-      the technical interviewer to make hiring decisions. You focus on STAR method
-      responses (Situation, Task, Action, Result) and probe for specific examples.
+    role: Senior Product Manager focusing on user experience
+    expertise: You focus on STAR method responses (Situation, Task, Action, Result)
+      and probe for specific examples.
     personalityTraits: Warm, empathetic, patient, relationship-focused, supportive,
       collaborative, good listener, emotionally intelligent, encouraging, diplomatic.
       You smile often, make eye contact, and create psychological safety. You ask
@@ -2356,17 +2348,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::NPCChatInstance
   npcProfile:
     npcName: superdude
-    systemPrompt: You are a Technical Director with 12 years of industry experience.
-      Your role is to evaluate technical competency, problem-solving abilities, and
-      strategic thinking. You ask direct, challenging questions and appreciate candidates
-      who can defend their decisions with data and logic. You value efficiency and
-      results.
-    contextPrompt: You're assessing technical skills and decision-making for a mid-level
-      position. You focus on past projects, technical challenges, and how candidates
-      approach complex problems. You use competency-based questions and situational
-      judgment scenarios. You look for expertise, adaptability, and the ability to
-      deliver under pressure. You collaborate with HR but make the final technical
-      call.
+    role: Senior Technical Interviewer specializing in backend systems
+    expertise: 'You use competency-based questions and situational judgment scenarios. '
     personalityTraits: Direct, analytical, results-oriented, no-nonsense, confident,
       decisive, detail-focused, challenging, high standards, time-conscious. You
       lean forward when engaged, may furrow your brow when skeptical. You interrupt
@@ -4961,9 +4944,9 @@ SceneRoots:
   - {fileID: 812325952}
   - {fileID: 673011204}
   - {fileID: 1726134543}
+  - {fileID: 524202516}
   - {fileID: 969207764}
   - {fileID: 1002537022}
   - {fileID: 1641263691}
   - {fileID: 4158779404490473210}
   - {fileID: 921026363}
-  - {fileID: 524202516}

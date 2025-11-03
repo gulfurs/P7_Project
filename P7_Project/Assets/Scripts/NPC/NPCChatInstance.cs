@@ -143,7 +143,7 @@ public class NPCChatInstance : MonoBehaviour
         var manager = NPCManager.Instance;
         if (manager != null)
         {
-            Debug.Log($"📢 User answered: \"{userText}\"");
+            Debug.Log($"📢 User answered: {userText}");
             
             foreach (var npc in manager.npcInstances)
             {
@@ -162,6 +162,7 @@ public class NPCChatInstance : MonoBehaviour
     /// <summary>
     /// Ask the LLM whether this NPC should respond to the candidate's answer
     /// Uses a simple decision prompt for turn-taking
+    /// IMPORTANT: This decision prompt is NEVER added to shared memory
     /// </summary>
     public void AskLLMIfShouldRespond(string userAnswer)
     {
@@ -190,14 +191,15 @@ public class NPCChatInstance : MonoBehaviour
         if (DialogueManager.Instance != null && !string.IsNullOrEmpty(DialogueManager.Instance.currentSpeaker))
             yield break;
 
-        // Simple decision prompt - should this NPC respond?
-        string decisionPrompt = $"Should {npcProfile.npcName} ask a follow-up question about: \"{userAnswer}\"?\nAnswer YES or NO: ";
+        // CRITICAL: Build a CLEAN, ISOLATED decision prompt that won't leak into memory
+        // Use ONLY the character role and the user's answer - NO conversation history
+        string decisionPrompt = $"You are {npcProfile.npcName}. The candidate said: \"{userAnswer}\"\n\nShould you ask a follow-up question? Reply with ONLY 'YES' or 'NO': ";
 
         // Queue the decision through the bridge
         string decisionRaw = string.Empty;
         bool decisionDone = false;
         
-        llamaBridge.EnqueueGenerate(decisionPrompt, 0.5f, 1.0f, 16,
+        llamaBridge.EnqueueGenerate(decisionPrompt, 0.3f, 1.0f, 8,
             (res) =>
             {
                 decisionRaw = (res ?? string.Empty).Trim();
@@ -243,6 +245,8 @@ public class NPCChatInstance : MonoBehaviour
             // Request turn and generate actual interview question
             if (DialogueManager.Instance != null && DialogueManager.Instance.RequestTurn(npcProfile.npcName))
             {
+                // CRITICAL: Add small delay to ensure decision context is fully cleared from LLM
+                yield return new WaitForSeconds(0.1f);
                 StartCoroutine(ExecuteSpeechRoutine(userAnswer));
             }
         }
@@ -269,18 +273,17 @@ public class NPCChatInstance : MonoBehaviour
         if (llamaMemory == null)
             llamaMemory = LlamaMemory.Instance;
         
-        // Get recent conversation context (last 2 turns)
-        string conversationHistory = llamaMemory.GetShortTermContext(2);
+        // Get recent conversation context (last 3 turns)
+        string conversationHistory = llamaMemory.GetShortTermContext(3);
 
         string response = string.Empty;
         bool done = false;
 
-        // Build minimal prompt: Short system + recent history + NPC name
+        // Build simple prompt
         var promptBuilder = new System.Text.StringBuilder();
-        promptBuilder.Append(npcProfile.GetShortSystemPrompt()).Append("\n\n");
         
         if (!string.IsNullOrEmpty(conversationHistory))
-            promptBuilder.Append(conversationHistory).Append("\n");
+            promptBuilder.AppendLine(conversationHistory);
 
         promptBuilder.Append(npcProfile.npcName).Append(": ");
 
@@ -301,6 +304,9 @@ public class NPCChatInstance : MonoBehaviour
         // Wait for completion
         yield return new WaitUntil(() => done);
 
+        // Debug: Log raw LLM output
+        Debug.Log($"[NPCChat] 🔍 RAW LLM OUTPUT for {npcProfile.npcName}: {response}");
+
         if (string.IsNullOrEmpty(response))
         {
             if (outputText) outputText.text = "No response";
@@ -308,39 +314,43 @@ public class NPCChatInstance : MonoBehaviour
             yield break;
         }
 
-        // Extract metadata (non-verbal actions) and spoken text
-        var (metadata, displayText) = NPCMetadata.ProcessResponse(response);
+        // Clean and extract
+        string cleanedResponse = CleanRawResponse(response);
+        Debug.Log($"[NPCChat] 🧹 CLEANED: {cleanedResponse}");
 
-        // Validate metadata - if missing, use defaults
-        if (!response.TrimStart().StartsWith("[META]", StringComparison.Ordinal))
+        // If no valid response, use simple fallback
+        if (string.IsNullOrEmpty(cleanedResponse))
         {
-            Debug.LogWarning($"[NPCChat] Response missing metadata block for {npcProfile.npcName}. Using defaults.");
-            metadata = new NPCMetadata { animatorTrigger = "idle", isFocused = true, isIgnoring = false };
+            cleanedResponse = "Tell me more about your experience.";
+            Debug.LogWarning($"[NPCChat] Using fallback response");
         }
 
-        // Clean spoken text - remove role labels, code fences, etc.
+        // Extract metadata - if missing, treat entire response as text
+        var (metadata, displayText) = NPCMetadata.ProcessResponse(cleanedResponse);
+        
+        // No metadata? Use defaults and treat response as plain text
+        if (!cleanedResponse.TrimStart().StartsWith("[META]"))
+        {
+            metadata = new NPCMetadata { animatorTrigger = "idle", isFocused = true, isIgnoring = false };
+            displayText = cleanedResponse; // Use entire cleaned response as speech
+        }
+        
+        Debug.Log($"[NPCChat] 📝 DISPLAY: {displayText}");
+
+        // MINIMAL cleaning - just remove NPC name prefix if present
         if (!string.IsNullOrEmpty(displayText))
         {
-            // Remove role prefixes
-            displayText = System.Text.RegularExpressions.Regex.Replace(
-                displayText, 
-                @"(?m)^(assistant\s*:|assistant:|user\s*:|user:)\s*", 
-                "", 
-                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-            
-            // Remove code fences
-            displayText = displayText.Replace("```", "");
-            
-            // Strip NPC name prefix if present
             if (displayText.StartsWith(npcProfile.npcName + ":", StringComparison.OrdinalIgnoreCase))
             {
                 int colon = displayText.IndexOf(":");
-                if (colon >= 0 && colon + 1 < displayText.Length)
-                    displayText = displayText.Substring(colon + 1).TrimStart();
+                if (colon >= 0) displayText = displayText.Substring(colon + 1).Trim();
             }
-            
-            // Collapse multiple newlines
-            displayText = System.Text.RegularExpressions.Regex.Replace(displayText, "\n{2,}", "\n").Trim();
+        }
+
+        // If empty, use fallback
+        if (string.IsNullOrWhiteSpace(displayText))
+        {
+            displayText = "Can you tell me more?";
         }
 
         // Update UI with clean spoken text only
@@ -351,48 +361,106 @@ public class NPCChatInstance : MonoBehaviour
         // IMPORTANT: These are internal behaviors, NOT spoken
         ExecuteMetadata(metadata);
 
-        // Check if output is an error (don't TTS errors)
-        bool isErrorOutput = false;
-        if (!string.IsNullOrEmpty(displayText))
+        // Simple validation - just check it's not empty
+        bool isValid = !string.IsNullOrWhiteSpace(displayText);
+
+        // TTS
+        if (IsTTSEnabled && ttsHandler != null && isValid)
         {
-            var low = displayText.ToLowerInvariant();
-            if (low.Contains("error") || low.Contains("llama_decode") || low.StartsWith("[error:"))
-                isErrorOutput = true;
+            ttsHandler.ProcessResponseForTTS(displayText);
         }
 
-        // Process TTS if enabled and not an error
-        if (IsTTSEnabled && ttsHandler != null && !isErrorOutput)
+        // Add to memory
+        if (isValid)
         {
-            try
-            {
-                // Limit TTS to first sentence or 300 chars
-                string ttsText = displayText ?? string.Empty;
-                if (ttsText.Length > 300)
-                {
-                    int idx = ttsText.IndexOf('.', 200);
-                    if (idx > 0)
-                        ttsText = ttsText.Substring(0, idx + 1);
-                    else
-                        ttsText = ttsText.Substring(0, 300);
-                }
-
-                ttsHandler.ProcessResponseForTTS(ttsText);
-            }
-            catch (System.Exception e)
-            {
-                Debug.LogError($"[NPCChat] TTS error: {e.Message}");
-            }
+            llamaMemory.AddDialogueTurn(npcProfile.npcName, displayText);
+            Debug.Log($"[NPCChat] {npcProfile.npcName} spoke: {displayText}");
         }
-
-        // Store spoken text in shared memory
-        string memoryText = isErrorOutput ? "[LLM ERROR]" : (displayText ?? string.Empty);
-        llamaMemory.AddDialogueTurn(npcProfile.npcName, memoryText);
         
-        Debug.Log($"[NPCChat] {npcProfile.npcName} spoke: \"{displayText}\"");
         LogMemoryState();
 
         FinishSpeaking();
         yield break;
+    }
+
+    /// <summary>
+    /// Clean raw LLM response - minimal cleaning only
+    /// </summary>
+    private string CleanRawResponse(string response)
+    {
+        if (string.IsNullOrEmpty(response))
+            return response;
+
+        // Remove "Do not use..." instructions that the LLM echoed back
+        response = System.Text.RegularExpressions.Regex.Replace(
+            response,
+            @"^Do not use [^.]+\.\s*",
+            "",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Multiline);
+
+        // Remove multiple "Do not..." statements
+        response = System.Text.RegularExpressions.Regex.Replace(
+            response,
+            @"Do not use [^,]+,\s*",
+            "",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        // Remove "just keep it simple" instructions
+        response = System.Text.RegularExpressions.Regex.Replace(
+            response,
+            @"just keep it simple[^.]+\.\s*",
+            "",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        // Remove decision prompt if it appears at the END
+        response = System.Text.RegularExpressions.Regex.Replace(
+            response,
+            @"Should\s+\w+\s+ask.*?Answer\s+YES\s+or\s+NO.*$",
+            "",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Singleline);
+
+        // Remove "yes" or "no" on its own line at the start
+        response = System.Text.RegularExpressions.Regex.Replace(
+            response,
+            @"^\s*(yes|no)\s*\n",
+            "",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Multiline);
+
+        // Remove "User:" lines (conversation echoes)
+        response = System.Text.RegularExpressions.Regex.Replace(
+            response,
+            @"User:\s*[^\n]+\n?",
+            "",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        // Remove "Assistant:" or NPC name prefixes mid-text
+        response = System.Text.RegularExpressions.Regex.Replace(
+            response,
+            @"\n\s*(Assistant|superdude|epiclonewolf):\s*\n?",
+            "\n",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        return response.Trim();
+    }
+
+    /// <summary>
+    /// Check if string contains actual readable text (not just punctuation/whitespace)
+    /// </summary>
+    private bool ContainsActualText(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return false;
+
+        // Count alphanumeric characters
+        int alphaCount = 0;
+        foreach (char c in text)
+        {
+            if (char.IsLetterOrDigit(c))
+                alphaCount++;
+        }
+
+        // Need at least 3 alphanumeric characters to be valid text
+        return alphaCount >= 3;
     }
 
     /// <summary>

@@ -30,9 +30,15 @@ public class NPCTTSHandler : MonoBehaviour
     
     /// <summary>
     /// Split response into TTS chunks at sentence boundaries
+    /// Minimal cleaning - just remove decision prompts
     /// </summary>
     public void ProcessResponseForTTS(string displayText)
     {
+        if (string.IsNullOrEmpty(displayText)) return;
+        
+        // ONLY remove decision prompt contamination, nothing else
+        displayText = CleanTextForTTS(displayText);
+        
         if (string.IsNullOrEmpty(displayText)) return;
         
         var chunks = new System.Collections.Generic.List<string>();
@@ -65,6 +71,22 @@ public class NPCTTSHandler : MonoBehaviour
         // Enqueue all chunks
         foreach (var chunk in chunks)
             EnqueueSpeech(chunk, null);
+    }
+    
+    /// <summary>
+    /// Clean text for TTS - ONLY remove decision prompts, keep everything else
+    /// </summary>
+    private string CleanTextForTTS(string text)
+    {
+        if (string.IsNullOrEmpty(text)) return text;
+        
+        // Only remove decision prompt contamination
+        text = System.Text.RegularExpressions.Regex.Replace(text,
+            @"Should\s+\w+\s+ask.*?Answer\s+YES\s+or\s+NO.*",
+            "",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        
+        return text.Trim();
     }
     
     public void Initialize(AudioSource source, string voice)
