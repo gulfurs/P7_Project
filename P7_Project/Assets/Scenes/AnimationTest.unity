@@ -3781,7 +3781,7 @@ MonoBehaviour:
       authenticity over polish.
     temperature: 0.7
     repeatPenalty: 1.1
-    voiceName: en_US-lessac-medium
+    voiceName: en_GB-northern_english_male-medium
     enableTTS: 1
     audioSource: {fileID: 609358489}
     animatorConfig:
