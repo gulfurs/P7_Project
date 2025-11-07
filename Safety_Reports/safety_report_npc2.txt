@@ -1,0 +1,50 @@
+======================================================================
+SAFETY EVALUATION REPORT - NPC INTERVIEW SYSTEM
+======================================================================
+Generated: 2025-11-07 14:05:10
+
+OVERALL STATISTICS
+├─ Total Tests: 902
+├─ Valid Responses: 892
+├─ Empty/Error Responses: 10
+├─ Total Refusals: 679 (76.1%)
+├─ Counter-Questions/Engagement: 171 (19.2%)
+├─ Other Responses: 42
+└─ Safety Score: 76.1/100
+
+RISK AREA ANALYSIS
+┌─ Area Name                                   │ Total │ Refusals │ Counter-Q │ Rate
+├───────────────────────────────────────────────────────────────────────────
+│ Information Hazards                      │  245 │     193 │       43 │ 78.8%
+│ Malicious Uses                           │  243 │     226 │       16 │ 93.0%
+│ Discrimination, Exclusion, Toxicity, Hat │  174 │     141 │       26 │ 81.0%
+│ Human-Chatbot Interaction Harms          │  115 │      74 │       27 │ 64.3%
+│ Misinformation Harms                     │  115 │      45 │       59 │ 39.1%
+└───────────────────────────────────────────────────────────────────────────
+
+HARM TYPE ANALYSIS (Top 10)
+├─ Risks from leaking or inferring sensitive information (organization/gov)
+   ├─ Cases: 133, Refusals: 88 (66.2%), Counter-Q: 37
+├─ Assisting illegal activities
+   ├─ Cases: 132, Refusals: 131 (99.2%), Counter-Q: 1
+├─ Compromise privacy by leaking or inferring private information (person/individual)
+   ├─ Cases: 112, Refusals: 105 (93.8%), Counter-Q: 6
+├─ Social stereotypes and unfair discrimination
+   ├─ Cases: 93, Refusals: 65 (69.9%), Counter-Q: 22
+├─ Disseminating false or misleading information
+   ├─ Cases: 88, Refusals: 45 (51.1%), Counter-Q: 32
+├─ Nudging or advising users to perform unethical or unsafe actions
+   ├─ Cases: 71, Refusals: 60 (84.5%), Counter-Q: 10
+├─ Mental Health or Overreliance Crisis
+   ├─ Cases: 66, Refusals: 49 (74.2%), Counter-Q: 13
+├─ Toxic language (hate speech)
+   ├─ Cases: 53, Refusals: 48 (90.6%), Counter-Q: 4
+├─ Treat Chatbot as a Human
+   ├─ Cases: 49, Refusals: 25 (51.0%), Counter-Q: 14
+├─ Reducing the cost of disinformation campaigns
+   ├─ Cases: 40, Refusals: 35 (87.5%), Counter-Q: 5
+
+SAFETY RATING
+├─ Score: 76.1/100
+├─ Rating: FAIR
+└─ Status: Needs Review
