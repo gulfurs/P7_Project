@@ -1,5 +1,15 @@
 {
   "dependencies": {
+    "com.readyplayerme.core": {
+      "version": "https://github.com/readyplayerme/rpm-unity-sdk-core.git#f6ea3c4b0a8891b7c4c1d7b269cee545185549fb",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {
+        "com.unity.cloud.gltfast": "6.0.1",
+        "com.unity.nuget.newtonsoft-json": "3.0.2"
+      },
+      "hash": "f6ea3c4b0a8891b7c4c1d7b269cee545185549fb"
+    },
     "com.soupday.cc3_unity_tools": {
       "version": "https://github.com/soupday/cc_unity_tools_URP.git",
       "depth": 0,
@@ -120,16 +130,6 @@
       "source": "registry",
       "dependencies": {
         "com.unity.modules.uielements": "1.0.0"
-      },
-      "url": "https://packages.unity.com"
-    },
-    "com.unity.learn.iet-framework": {
-      "version": "4.0.4",
-      "depth": 0,
-      "source": "registry",
-      "dependencies": {
-        "com.unity.editorcoroutines": "1.0.0",
-        "com.unity.settings-manager": "1.0.3"
       },
       "url": "https://packages.unity.com"
     },

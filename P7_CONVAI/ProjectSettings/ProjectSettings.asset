@@ -822,24 +822,24 @@ PlayerSettings:
   webGLCloseOnQuit: 0
   webWasm2023: 0
   scriptingDefineSymbols:
-    Android: CC_TOOLS
-    EmbeddedLinux: CC_TOOLS
-    GameCoreScarlett: CC_TOOLS
-    GameCoreXboxOne: CC_TOOLS
-    Kepler: CC_TOOLS
-    LinuxHeadlessSimulation: CC_TOOLS
-    Nintendo Switch: CC_TOOLS
-    Nintendo Switch 2: CC_TOOLS
-    PS4: CC_TOOLS
-    PS5: CC_TOOLS
-    QNX: CC_TOOLS
-    Standalone: CC_TOOLS
-    VisionOS: CC_TOOLS
-    WebGL: CC_TOOLS
-    Windows Store Apps: CC_TOOLS
-    XboxOne: CC_TOOLS
-    iPhone: CC_TOOLS
-    tvOS: CC_TOOLS
+    Android: CC_TOOLS;READY_PLAYER_ME
+    EmbeddedLinux: CC_TOOLS;READY_PLAYER_ME
+    GameCoreScarlett: CC_TOOLS;READY_PLAYER_ME
+    GameCoreXboxOne: CC_TOOLS;READY_PLAYER_ME
+    Kepler: CC_TOOLS;READY_PLAYER_ME
+    LinuxHeadlessSimulation: CC_TOOLS;READY_PLAYER_ME
+    Nintendo Switch: CC_TOOLS;READY_PLAYER_ME
+    Nintendo Switch 2: CC_TOOLS;READY_PLAYER_ME
+    PS4: CC_TOOLS;READY_PLAYER_ME
+    PS5: CC_TOOLS;READY_PLAYER_ME
+    QNX: CC_TOOLS;READY_PLAYER_ME
+    Standalone: CC_TOOLS;READY_PLAYER_ME
+    VisionOS: CC_TOOLS;READY_PLAYER_ME
+    WebGL: CC_TOOLS;READY_PLAYER_ME
+    Windows Store Apps: CC_TOOLS;READY_PLAYER_ME
+    XboxOne: CC_TOOLS;READY_PLAYER_ME
+    iPhone: CC_TOOLS;READY_PLAYER_ME
+    tvOS: CC_TOOLS;READY_PLAYER_ME
   additionalCompilerArguments: {}
   platformArchitecture: {}
   scriptingBackend:
