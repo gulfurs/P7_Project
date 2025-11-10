@@ -21,6 +21,10 @@ public class TutorialManager : MonoBehaviour
     public TMP_Text instructionText;
     public GameObject objectToHideOnComplete; // Drag the Canvas/UI here
     
+    [Header("Interview Transition")]
+    public Canvas interviewCanvas;           // Interview UI to show after tutorial
+    public InteractManager interactManager;  // To freeze/unfreeze interaction
+    
     [Header("Component References")]
     public OllamaChatClient ollamaClient;
     public NPCTTSHandler ttsHandler;
@@ -135,10 +139,14 @@ public class TutorialManager : MonoBehaviour
         var displayBuffer = new StringBuilder();
         bool shouldStreamDisplay = !npcProfile.enableTTS;
         
+        // Use higher temperature for variety in tutorial responses
+        float tutorialTemperature = 0f;  // Higher than default for variety
+        float tutorialRepeatPenalty = 1.1f;
+        
         var response = await ollamaClient.SendChatAsync(
             messages,
-            npcProfile.temperature,
-            npcProfile.repeatPenalty,
+            tutorialTemperature,
+            tutorialRepeatPenalty,
             null,
             (token) => ProcessToken(token, ttsBuffer, displayBuffer, shouldStreamDisplay),
             cts.Token
@@ -162,8 +170,24 @@ public class TutorialManager : MonoBehaviour
         // Wait for TTS to finish
         if (npcProfile.enableTTS && ttsHandler != null)
         {
+            int waitCount = 0;
             while (ttsHandler.IsSpeaking())
+            {
+                waitCount++;
                 await System.Threading.Tasks.Task.Delay(50, cts.Token);
+                
+                // Safety timeout: 60 seconds max
+                if (waitCount > 1200)
+                {
+                    Debug.LogWarning("[Tutorial] TTS timeout - proceeding anyway");
+                    break;
+                }
+            }
+            Debug.Log($"[Tutorial] Waited {waitCount * 50}ms for TTS to complete");
+        }
+        else
+        {
+            Debug.LogWarning($"[Tutorial] TTS disabled or handler null. enableTTS={npcProfile?.enableTTS}, handler={ttsHandler != null}");
         }
 
         // AFTER TTS finishes, show final message (index 3)
@@ -172,12 +196,16 @@ public class TutorialManager : MonoBehaviour
             instructionText.text = instructionMessages[3];
         }
         
-        // Hide the object after brief pause
-        await System.Threading.Tasks.Task.Delay(2000);
+        // Wait briefly before transition (reduced from 2000)
+        await System.Threading.Tasks.Task.Delay(500);
+        
+        // SMOOTH TRANSITION: Hide tutorial, start interview
         if (objectToHideOnComplete != null)
-        {
             objectToHideOnComplete.SetActive(false);
-        }
+        
+        // Start interview seamlessly
+        await System.Threading.Tasks.Task.Delay(200); // Brief pause (reduced from 500)
+        TransitionToInterview();
         
         FinishSpeaking();
     }
@@ -252,5 +280,33 @@ public class TutorialManager : MonoBehaviour
     private void FinishSpeaking()
     {
         isCurrentlySpeaking = false;
+    }
+
+    /// <summary>
+    /// Transition from tutorial to interview (seamless)
+    /// </summary>
+    private void TransitionToInterview()
+    {
+        Debug.Log("🎬 Tutorial complete → Interview starting");
+        
+        // Clear interview state
+        if (DialogueManager.Instance != null)
+            DialogueManager.Instance.ClearHistory();
+        
+        foreach (var npc in NPCManager.Instance.npcInstances)
+            npc?.ClearMemory();
+        
+        // Show interview UI
+        if (interviewCanvas != null)
+            interviewCanvas.gameObject.SetActive(true);
+        
+        // NOTE: WhisperContinuous is enabled by Interview controller
+        // Not here - tutorial is purely text-input
+        
+        // Freeze world interaction
+        if (interactManager != null)
+            interactManager.UnlockInteract(false);
+        
+        Debug.Log("📢 Ready for interview");
     }
 }

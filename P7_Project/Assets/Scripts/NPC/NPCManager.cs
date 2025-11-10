@@ -8,9 +8,6 @@ public class NPCManager : MonoBehaviour
     
     [Header("Global Settings")]
     public bool globalTTSEnabled = true; // Master TTS switch for debugging
-
-    [Header("Shared Gaze Reference")]
-    public Transform userTransform;
     
     public static NPCManager Instance { get; private set; }
     
@@ -40,8 +37,17 @@ public class NPCManager : MonoBehaviour
 
     public Transform GetLookTargetForSpeaker(string speakerName)
     {
+        // If asking for "User" target, try to find by tag
         if (speakerName.Equals("User", System.StringComparison.OrdinalIgnoreCase))
-            return userTransform;
+        {
+            var player = GameObject.FindWithTag("Player");
+            if (player != null) return player.transform;
+            
+            // Fallback: look for camera
+            if (Camera.main != null) return Camera.main.transform;
+            
+            return null; // No user found
+        }
 
         foreach (var npc in npcInstances)
         {

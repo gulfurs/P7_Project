@@ -1076,6 +1076,59 @@ MonoBehaviour:
   m_LightCookieSize: {x: 1, y: 1}
   m_LightCookieOffset: {x: 0, y: 0}
   m_SoftShadowQuality: 1
+--- !u!1 &425105874
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 425105876}
+  - component: {fileID: 425105875}
+  m_Layer: 0
+  m_Name: LLMConfig
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &425105875
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 425105874}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f2812329ce79d0346a7c27c9059db287, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  mode: 1
+  modelPath: models/llama3.gguf
+  modelName: llama3
+  ollamaEndpoint: http://localhost:11434/api/chat
+  ollamaModel: qwen3:4b-instruct-2507-q4_K_M
+  defaultTemperature: 0.7
+  defaultRepeatPenalty: 1.1
+  defaultMaxTokens: 256
+  topP: 0.9
+--- !u!4 &425105876
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 425105874}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 542.5, y: 261.5, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &434957206
 GameObject:
   m_ObjectHideFlags: 0
@@ -1746,10 +1799,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b9342ed183e2bce48b5aefaa50186059, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::OllamaChatClient
-  endpoint: http://localhost:11434/api/chat
-  model: qwen3:4b-instruct-2507-q4_K_M
-  topP: 0.9
-  maxTokens: 150
 --- !u!4 &812325952
 Transform:
   m_ObjectHideFlags: 0
@@ -2202,13 +2251,17 @@ MonoBehaviour:
       You smile often, make eye contact, and create psychological safety. You ask
       follow-up questions about team dynamics and conflict resolution. You value
       authenticity over polish.
-    temperature: 0.7
-    repeatPenalty: 1.1
+    temperatureMultiplier: 1
+    repeatPenaltyMultiplier: 1
     voiceName: en_US-lessac-medium
     enableTTS: 1
     audioSource: {fileID: 945180899}
     animatorConfig:
       animator: {fileID: 0}
+      gazeOrigin: {fileID: 0}
+      neutralLookTarget: {fileID: 0}
+      ignoreLookTarget: {fileID: 0}
+      gazeLerpSpeed: 8
       availableTriggers:
       - nod
       - shake_head
@@ -2226,8 +2279,6 @@ MonoBehaviour:
     shortTermCapacity: 5
     mediumTermCapacity: 20
   enableAutoResponse: 1
-  responseDelay: 2
-  responseChance: 0.8
   userInput: {fileID: 2006649159}
   outputText: {fileID: 1197911581}
   npcNameLabel: {fileID: 409174237}
@@ -2295,13 +2346,17 @@ MonoBehaviour:
       lean forward when engaged, may furrow your brow when skeptical. You interrupt
       vague answers to ask for specifics. You respect candidates who push back with
       solid reasoning. You get impatient with filler words or rambling.
-    temperature: 0.7
-    repeatPenalty: 1.1
+    temperatureMultiplier: 1
+    repeatPenaltyMultiplier: 1
     voiceName: en_US-lessac-medium
     enableTTS: 1
     audioSource: {fileID: 1049591165}
     animatorConfig:
       animator: {fileID: 0}
+      gazeOrigin: {fileID: 0}
+      neutralLookTarget: {fileID: 0}
+      ignoreLookTarget: {fileID: 0}
+      gazeLerpSpeed: 8
       availableTriggers:
       - nod
       - shake_head
@@ -2319,8 +2374,6 @@ MonoBehaviour:
     shortTermCapacity: 5
     mediumTermCapacity: 20
   enableAutoResponse: 1
-  responseDelay: 2
-  responseChance: 0.8
   userInput: {fileID: 16006732}
   outputText: {fileID: 1077084365}
   npcNameLabel: {fileID: 661143557}
@@ -4044,10 +4097,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   currentSpeaker: 
-  lastSpeakTime: 0
-  minimumTurnGap: 1
+  lastSpeakerName: 
   totalTurns: 0
-  queuedRequests: 0
 --- !u!4 &1726134543
 Transform:
   m_ObjectHideFlags: 0
@@ -4891,3 +4942,4 @@ SceneRoots:
   - {fileID: 1641263691}
   - {fileID: 4158779404490473210}
   - {fileID: 921026363}
+  - {fileID: 425105876}

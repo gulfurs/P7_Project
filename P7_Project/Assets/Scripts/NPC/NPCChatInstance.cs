@@ -114,23 +114,40 @@ public class NPCChatInstance : MonoBehaviour
         if (npcNameLabel != null && npcProfile != null)
             npcNameLabel.text = npcProfile.npcName;
 
+        // Both NPCs should listen to InputField submissions
         if (userInput != null)
+        {
             userInput.onSubmit.AddListener((string text) => { Send(); });
+            Debug.Log($"[NPCChatInstance] {npcProfile.npcName} listening to input");
+        }
     }
 
     /// <summary>
-    /// Send message from UI input
+    /// Send message from UI input (text mode - tutorial)
     /// </summary>
     public void Send()
     {
         var userText = userInput != null ? userInput.text : "";
         if (string.IsNullOrWhiteSpace(userText) || npcProfile == null || ollamaClient == null) return;
 
+        ProcessUserAnswer(userText);
+
+        if (userInput != null)
+            userInput.text = "";
+    }
+
+    /// <summary>
+    /// Process user answer from voice or text
+    /// Central method - avoids duplication
+    /// </summary>
+    public void ProcessUserAnswer(string userText)
+    {
+        if (string.IsNullOrWhiteSpace(userText) || npcProfile == null || ollamaClient == null) 
+            return;
+
         // Notify DialogueManager
         if (DialogueManager.Instance != null)
-        {
             DialogueManager.Instance.OnUserAnswered(userText);
-        }
 
         // Broadcast user answer to ALL interviewers
         var manager = NPCManager.Instance;
@@ -148,9 +165,6 @@ public class NPCChatInstance : MonoBehaviour
                 }
             }
         }
-
-        if (userInput != null)
-            userInput.text = "";
     }
     
     /// <summary>
@@ -255,8 +269,8 @@ public class NPCChatInstance : MonoBehaviour
         
         var response = await ollamaClient.SendChatAsync(
             messages,
-            npcProfile.temperature,
-            npcProfile.repeatPenalty,
+            npcProfile.GetEffectiveTemperature(),
+            npcProfile.GetEffectiveRepeatPenalty(),
             null,
             token => ProcessToken(token, ttsBuffer, displayBuffer, ttsActive, shouldStreamDisplay),
             cts.Token
@@ -419,10 +433,15 @@ public class NPCChatInstance : MonoBehaviour
 
     private void EnqueueTTSChunk(string chunk, string displaySnapshot)
     {
+        // Display text immediately when enqueued (don't wait for audio playback)
+        if (outputText)
+            outputText.text = displaySnapshot;
+        
+        // Queue TTS audio generation in background
         ttsHandler.EnqueueSpeech(chunk, () =>
         {
-            if (outputText)
-                outputText.text = displaySnapshot;
+            // Callback when audio playback starts (for future audio feedback)
+            Debug.Log($"[TTS] Audio playback starting for chunk: {chunk.Substring(0, Math.Min(20, chunk.Length))}...");
         });
     }
 

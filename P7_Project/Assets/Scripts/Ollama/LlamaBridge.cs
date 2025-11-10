@@ -2,73 +2,133 @@ using System;
 using System.Runtime.InteropServices;
 using UnityEngine;
 
+/// <summary>
+/// Native DLL bridge for local GGUF model inference
+/// Thread-safe generation queue for Unity integration
+/// </summary>
 public class LlamaBridge : MonoBehaviour
 {
-    [Header("LLaMA Settings")]
-    public string modelPath = "Assets/StreamingAssets/models/llama3.gguf";
-    [TextArea(2, 5)] public string prompt = "Hello, who are you?";
+    public static LlamaBridge Instance { get; private set; }
+
+    [Header("Model Configuration")]
+    public string modelPath = "";
+    
+    [Header("Debug")]
     [TextArea(5, 10)] public string generatedText;
 
     private IntPtr ctx;
     private const string DLL_NAME = "llama_unity";
+    private System.Collections.Generic.Queue<Request> requestQueue = new System.Collections.Generic.Queue<Request>();
+    private bool isProcessing = false;
 
-    [DllImport(DLL_NAME, EntryPoint = "llama_init_from_file", CallingConvention = CallingConvention.Cdecl)]
-    private static extern IntPtr llama_init_from_file([MarshalAs(UnmanagedType.LPStr)] string modelPath);
+    private class Request
+    {
+        public string prompt;
+        public float temperature;
+        public float repeatPenalty;
+        public int maxTokens;
+        public Action<string> callback;
+    }
 
-    [DllImport(DLL_NAME, EntryPoint = "llama_free_context", CallingConvention = CallingConvention.Cdecl)]
+    [DllImport(DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr llama_init_from_file([MarshalAs(UnmanagedType.LPStr)] string path);
+
+    [DllImport(DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
     private static extern void llama_free_context(IntPtr ctx);
 
-    [DllImport(DLL_NAME, EntryPoint = "llama_generate", CallingConvention = CallingConvention.Cdecl)]
+    [DllImport(DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
     private static extern IntPtr llama_generate(IntPtr ctx, [MarshalAs(UnmanagedType.LPStr)] string prompt);
 
     private void Start()
     {
-        Initialize();
-
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+        Instance = this;
         
-       // StartCoroutine(GenerateAfterDelay(5.5f));
-    }
+        // Only initialize local GGUF mode
+        if (LLMConfig.Instance != null && !LLMConfig.Instance.IsLocalMode)
+        {
+            Debug.Log("[LlamaBridge] Skipping initialization - not in LocalGGUF mode");
+            return;
+        }
 
-    private System.Collections.IEnumerator GenerateAfterDelay(float delay)
-    {
-        yield return new WaitForSeconds(delay);
-        GenerateText();
+        if (string.IsNullOrEmpty(modelPath) && LLMConfig.Instance != null)
+            modelPath = LLMConfig.Instance.modelPath;
+        
+        // Only initialize if not already initialized
+        if (ctx == IntPtr.Zero)
+            Initialize();
     }
 
     public void Initialize()
     {
-        Debug.Log($"[LLaMA] Initializing model from path: {modelPath}");
+        // Prevent double initialization
+        if (ctx != IntPtr.Zero)
+        {
+            Debug.LogWarning("[LlamaBridge] Already initialized, skipping.");
+            return;
+        }
 
         ctx = llama_init_from_file(modelPath);
         if (ctx == IntPtr.Zero)
         {
-            Debug.LogError("[LLaMA] Failed to initialize model. Context is null.");
+            Debug.LogError($"[LlamaBridge] Failed to load model: {modelPath}");
             return;
         }
-
-        Debug.Log("[LLaMA] Model loaded successfully!");
+        
+        string modelName = LLMConfig.Instance != null ? LLMConfig.Instance.modelName : "Unknown";
+        Debug.Log($"[LlamaBridge] ✓ Loaded: {modelName}");
     }
 
-    public void GenerateText()
+    public string GenerateText(string prompt, float temperature = 0.7f, float repeatPenalty = 1.1f, int maxTokens = 256)
     {
         if (ctx == IntPtr.Zero)
         {
-            Debug.LogError("[LLaMA] Model not initialized. Call Initialize() first.");
-            return;
+            Debug.LogError("[LlamaBridge] Model not initialized");
+            return "";
         }
 
-        Debug.Log($"[LLaMA] Sending prompt: {prompt}");
         IntPtr resultPtr = llama_generate(ctx, prompt);
+        if (resultPtr == IntPtr.Zero) return "";
 
-        if (resultPtr == IntPtr.Zero)
+        generatedText = Marshal.PtrToStringAnsi(resultPtr) ?? "";
+        return generatedText;
+    }
+
+    public void EnqueueGenerate(string prompt, float temp, float penalty, int maxTokens, Action<string> callback)
+    {
+        requestQueue.Enqueue(new Request
         {
-            Debug.LogError("[LLaMA] llama_generate returned null pointer!");
-            return;
-        }
+            prompt = prompt,
+            temperature = temp,
+            repeatPenalty = penalty,
+            maxTokens = maxTokens,
+            callback = callback
+        });
 
-        string result = Marshal.PtrToStringAnsi(resultPtr);
-        generatedText = result ?? "[Empty response]";
-        Debug.Log($"[LLaMA] Output: {generatedText}");
+        if (!isProcessing)
+            StartCoroutine(ProcessQueue());
+    }
+
+    private System.Collections.IEnumerator ProcessQueue()
+    {
+        isProcessing = true;
+        
+        while (requestQueue.Count > 0)
+        {
+            var req = requestQueue.Dequeue();
+            string result = GenerateText(req.prompt, req.temperature, req.repeatPenalty, req.maxTokens);
+            
+            try { req.callback?.Invoke(result); }
+            catch (Exception e) { Debug.LogWarning($"[LlamaBridge] Callback error: {e.Message}"); }
+
+            yield return null;
+        }
+        
+        isProcessing = false;
     }
 
     private void OnDestroy()
@@ -77,7 +137,6 @@ public class LlamaBridge : MonoBehaviour
         {
             llama_free_context(ctx);
             ctx = IntPtr.Zero;
-            Debug.Log("[LLaMA] Freed context.");
         }
     }
 }

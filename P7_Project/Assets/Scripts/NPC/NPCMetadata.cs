@@ -156,12 +156,6 @@ public class NPCAnimatorConfig
             return false;
         }
         
-        // DEBUG: Just log the animation trigger instead of executing it
-        Debug.Log($"🎭 [DEBUG] Animation trigger requested: {triggerName}");
-        //return true;
-        
-        // TODO: Uncomment when ready to use actual animator
-        
         if (animator == null)
         {
             Debug.LogWarning("Animator not assigned!");
@@ -171,7 +165,6 @@ public class NPCAnimatorConfig
         animator.Play(triggerName, 2);
         Debug.Log($"✓ Triggered animation: {triggerName}");
         return true;
-        
     }
     
     /// <summary>
@@ -184,13 +177,11 @@ public class NPCAnimatorConfig
         if (stateChanged)
         {
             currentAttentionState = state;
-            Debug.Log($"👁️ [DEBUG] Attention state changed to: {state}");
+            Debug.Log($"👁️ Attention state changed to: {state}");
         }
 
         UpdateLookTarget(immediate || stateChanged);
 
-        // TODO: Uncomment when ready to use actual animator
-        /*
         if (animator == null)
             return;
 
@@ -214,7 +205,6 @@ public class NPCAnimatorConfig
                 TriggerAnimation("idle");
                 break;
         }
-        */
     }
 
     public AttentionState CurrentAttentionState => currentAttentionState;

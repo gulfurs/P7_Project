@@ -9,15 +9,20 @@ using TMPro;
 
 public class OllamaChatClient : MonoBehaviour
 {
-    [Header("Ollama Connection")]
-    public string endpoint = "http://localhost:11434/api/chat";
-    public string model = "qwen3:4b-instruct-2507-q4_K_M";
-    [Range(0.1f, 1.0f)]
-    public float topP = 0.9f;
-    [Range(64, 512)]
-    public int maxTokens = 150;
-
     private static readonly HttpClient http = new HttpClient();
+
+    private void Start()
+    {
+        // LLMConfig is now mandatory - don't override
+        if (LLMConfig.Instance == null)
+        {
+            Debug.LogError("[OllamaChatClient] ❌ LLMConfig not found in scene!");
+            enabled = false;
+            return;
+        }
+        
+        Debug.Log("[OllamaChatClient] ✓ Connected to LLMConfig");
+    }
 
     [Serializable] 
     public class ChatMessage 
@@ -31,6 +36,10 @@ public class OllamaChatClient : MonoBehaviour
     {
         try
         {
+            // Read from LLMConfig every time (single source of truth)
+            string endpoint = LLMConfig.Instance.ollamaEndpoint;
+            string model = LLMConfig.Instance.ollamaModel;
+            
             string json = BuildRequestJson(model, messages, temperature, repeatPenalty);
             var httpRequest = new HttpRequestMessage(HttpMethod.Post, endpoint)
             {
@@ -92,8 +101,8 @@ public class OllamaChatClient : MonoBehaviour
           .Append(",\"options\":{")
           .Append("\"temperature\":").Append(temperature.ToString("F1", System.Globalization.CultureInfo.InvariantCulture))
           .Append(",\"repeat_penalty\":").Append(repeatPenalty.ToString("F1", System.Globalization.CultureInfo.InvariantCulture))
-          .Append(",\"top_p\":").Append(topP.ToString("F1", System.Globalization.CultureInfo.InvariantCulture))
-          .Append(",\"max_tokens\":").Append(maxTokens)
+          .Append(",\"top_p\":").Append(LLMConfig.Instance.topP.ToString("F1", System.Globalization.CultureInfo.InvariantCulture))
+          .Append(",\"max_tokens\":").Append(LLMConfig.Instance.defaultMaxTokens)
           .Append(",\"num_ctx\":4096")
           .Append("}")
           .Append(",\"messages\":[");

@@ -16,11 +16,14 @@ public class NPCProfile
     public string personalityTraits;
     
     // LLM parameters for this specific NPC
-    [Range(0.1f, 2.0f)]
-    public float temperature = 0.7f;
+    [Header("LLM Parameter Overrides")]
+    [Tooltip("Multiplier on LLMConfig.defaultTemperature (1.0 = use default)")]
+    [Range(0.8f, 1.2f)]
+    public float temperatureMultiplier = 1.0f;
     
-    [Range(1.0f, 1.5f)]
-    public float repeatPenalty = 1.1f;
+    [Tooltip("Multiplier on LLMConfig.defaultRepeatPenalty (1.0 = use default)")]
+    [Range(0.8f, 1.2f)]
+    public float repeatPenaltyMultiplier = 1.0f;
     
     [Header("TTS Settings")]
     public string voiceName = "en_US-lessac-medium"; // Piper voice model name
@@ -32,6 +35,26 @@ public class NPCProfile
     
     // Optional reference to the NPC's visual representation
     public GameObject npcGameObject;
+    
+    /// <summary>
+    /// Get the effective temperature for this NPC
+    /// Combines LLMConfig default with per-NPC multiplier
+    /// </summary>
+    public float GetEffectiveTemperature()
+    {
+        if (LLMConfig.Instance == null) return 0.7f;
+        return LLMConfig.Instance.defaultTemperature * temperatureMultiplier;
+    }
+    
+    /// <summary>
+    /// Get the effective repeat penalty for this NPC
+    /// Combines LLMConfig default with per-NPC multiplier
+    /// </summary>
+    public float GetEffectiveRepeatPenalty()
+    {
+        if (LLMConfig.Instance == null) return 1.1f;
+        return LLMConfig.Instance.defaultRepeatPenalty * repeatPenaltyMultiplier;
+    }
     
     // Get the full system prompt combining all elements
     public string GetFullSystemPrompt()

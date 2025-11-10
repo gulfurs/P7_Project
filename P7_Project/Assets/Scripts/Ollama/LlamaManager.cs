@@ -1,66 +1,55 @@
 using UnityEngine;
 
+/// <summary>
+/// Coordinator for LlamaBridge + shared memory
+/// Optional - NPCs can use LlamaBridge directly
+/// </summary>
 public class LlamaManager : MonoBehaviour
 {
-    [Header(" LLaMA Components")]
     public LlamaBridge bridge;
-
-    [Header(" Model Path")]
-    public string modelPath = "Assets/StreamingAssets/models/llama2888.gguf";
-
     public LlamaMemory memory;
+    public string modelPath = "";
 
     private void Start()
     {
-        if (bridge == null)
+        if (!bridge) { Debug.LogError("[LlamaManager] No LlamaBridge!"); return; }
+        if (!memory) memory = LlamaMemory.Instance;
+
+        // Only use LlamaBridge if in LocalGGUF mode
+        if (LLMConfig.Instance != null && !LLMConfig.Instance.IsLocalMode)
         {
-            Debug.LogError("[LLaMA Manager] Missing LlamaBridge!");
+            Debug.Log("[LlamaManager] Skipping LlamaBridge setup - not in LocalGGUF mode");
             return;
         }
 
-        bridge.modelPath = modelPath;
-        bridge.Initialize();
-
-        Debug.Log("[LLaMA Manager] Model initialized, ready for prompts...");
+        // Don't initialize here if LlamaBridge will initialize itself
+        // LlamaBridge.Start() already calls Initialize()
+        if (string.IsNullOrEmpty(bridge.modelPath))
+        {
+            if (string.IsNullOrEmpty(modelPath) && LLMConfig.Instance != null)
+                modelPath = LLMConfig.Instance.modelPath;
+            
+            bridge.modelPath = modelPath;
+            // Bridge will initialize itself in its Start() method
+        }
     }
 
-    //  This function lets Whisper send messages.
     public void SendPrompt(string userPrompt)
     {
-        if (bridge == null)
+        if (!bridge || !memory) return;
+
+        memory.AddDialogueTurn("User", userPrompt);
+        string context = memory.GetFullConversation();
+        
+        var config = LLMConfig.Instance;
+        if (config == null)
         {
-            Debug.LogError("[LLaMA Manager] Missing bridge reference!");
+            Debug.LogError("[LlamaManager] LLMConfig not found!");
             return;
         }
 
-        if (memory == null)
-        {
-            Debug.LogError("[LLaMA Manager] Missing memory reference!");
-            return;
-        }
-
-        //  Add user message
-        memory.AddUserMessage(userPrompt);
-
-        //  Build full prompt from memory
-        string fullPrompt = memory.GetFullConversation();
-        bridge.prompt = fullPrompt;
-
-        Debug.Log($"[LLaMA Manager] Sending conversation:\n{fullPrompt}");
-
-        //  Creates model reply
-        bridge.GenerateText();
-
-        string reply = bridge.generatedText.Trim();
-        Debug.Log($"[LLaMA Manager] Assistant replied:\n{reply}");
-
-        // Store reply in memory
-        memory.AddAssistantMessage(reply);
-    }
-
-
-    private void OnDestroy()
-    {
-        Debug.Log("[LLaMA Manager] Destroyed, cleaning up resources...");
+        string reply = bridge.GenerateText(context, config.defaultTemperature, config.defaultRepeatPenalty, config.defaultMaxTokens);
+        
+        memory.AddDialogueTurn("Assistant", reply);
     }
 }

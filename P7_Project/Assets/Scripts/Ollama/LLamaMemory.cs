@@ -1,60 +1,74 @@
+using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 
+/// <summary>
+/// Shared conversation memory for job interview simulation
+/// Used by all NPCs - maintains dialogue history and system prompts
+/// </summary>
 public class LlamaMemory : MonoBehaviour
 {
-    [Header("Conversation Memory")]
-    [TextArea(5, 10)]
-    public string conversationPreview;
-
     private StringBuilder memory = new StringBuilder();
-    private const int maxMemoryLength = 8000; // prevent overflow
+    private const int MAX_LENGTH = 8000;
+    private Dictionary<string, string> npcSystemPrompts = new Dictionary<string, string>();
+    private Dictionary<string, List<string>> npcFacts = new Dictionary<string, List<string>>();
+    
+    public static LlamaMemory Instance { get; private set; }
 
-    [Tooltip("A short instruction to define how the assistant should behave.")]
-    public string systemPrompt = "System: You are a helpful and concise assistant.";
-
-    void Awake()
+    private void Awake()
     {
-        memory.AppendLine(systemPrompt);
+        if (Instance != null && Instance != this) { Destroy(gameObject); return; }
+        Instance = this;
+        DontDestroyOnLoad(gameObject);
     }
 
-    /// <summary>
-    /// Adds a new user message to memory.
-    /// </summary>
-    public void AddUserMessage(string userInput)
+    public void RegisterNPCPrompt(string npcName, string systemPrompt)
     {
-        memory.AppendLine($"User: {userInput}");
-        memory.AppendLine("Assistant:");
-        UpdatePreview();
+        npcSystemPrompts[npcName] = systemPrompt;
     }
 
-    /// <summary>
-    /// Adds the assistant's reply to memory.
-    /// </summary>
-    public void AddAssistantMessage(string reply)
+    public void AddDialogueTurn(string speaker, string message)
     {
-        memory.AppendLine($"Assistant: {reply}");
-        UpdatePreview();
-
-        // Trim memory if it gets too long
-        if (memory.Length > maxMemoryLength)
-        {
-            int cutIndex = memory.Length / 2;
-            memory.Remove(0, cutIndex);
-            memory.Insert(0, systemPrompt + "\n");
-        }
+        memory.AppendLine($"{speaker}: {message}");
+        
+        if (memory.Length > MAX_LENGTH)
+            memory.Remove(0, memory.Length / 2);
     }
 
-    /// <summary>
-    /// Returns the full conversation for LLaMA prompt input.
-    /// </summary>
-    public string GetFullConversation()
+    public void AddFact(string npcName, string fact)
     {
-        return memory.ToString();
+        if (!npcFacts.ContainsKey(npcName))
+            npcFacts[npcName] = new List<string>();
+        
+        if (!npcFacts[npcName].Contains(fact))
+            npcFacts[npcName].Add(fact);
     }
 
-    private void UpdatePreview()
+    public string BuildPromptForGeneration(string npcName, int lastNTurns = 4)
     {
-        conversationPreview = memory.ToString();
+        return GetShortTermContext(lastNTurns);
+    }
+
+    public string GetShortTermContext(int lastNTurns = 6)
+    {
+        string[] lines = memory.ToString().Split('\n');
+        int start = Mathf.Max(0, lines.Length - lastNTurns);
+        var sb = new StringBuilder();
+
+        for (int i = start; i < lines.Length; i++)
+            if (!string.IsNullOrEmpty(lines[i]))
+                sb.AppendLine(lines[i]);
+
+        return sb.ToString().Trim();
+    }
+
+    public string GetFullConversation() => memory.ToString();
+    
+    public int GetFactCount(string npcName) => npcFacts.ContainsKey(npcName) ? npcFacts[npcName].Count : 0;
+
+    public void ClearAll()
+    {
+        memory.Clear();
+        npcFacts.Clear();
     }
 }

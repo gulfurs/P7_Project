@@ -13,7 +13,8 @@ public class DialogueManager : MonoBehaviour
     public string lastSpeakerName = "";
     
     private readonly List<string> speakerHistory = new List<string>();
-    private int turnDecisionsThisRound = 0;  // Track how many NPCs decided this round
+    private readonly List<(string npcName, bool wantsToSpeak)> decisionsThisRound 
+        = new List<(string, bool)>();
     
     [Header("Debug Info")]
     public int totalTurns = 0;
@@ -98,25 +99,32 @@ public class DialogueManager : MonoBehaviour
     
     public void OnUserAnswered(string answer)
     {
-        Debug.Log($"👤 User answered: \"{answer.Substring(0, Mathf.Min(50, answer.Length))}...\"");
         NPCManager.Instance?.NotifySpeakerChanged("User");
-        turnDecisionsThisRound = 0;  // Reset for new round
+        decisionsThisRound.Clear();  // Reset for new round
     }
     
     /// <summary>
     /// Track a decision and return whether this NPC should be forced to speak
+    /// Supports any number of NPCs:
+    /// - If anyone wants to speak, the FIRST one gets the turn
+    /// - If nobody wants to speak, pick a random NPC
     /// </summary>
     public bool RecordDecision(string npcName, bool wantsToSpeak)
     {
-        turnDecisionsThisRound++;
+        decisionsThisRound.Add((npcName, wantsToSpeak));
         
-        // If any NPC wants to speak, let them
-        if (wantsToSpeak)
-            return true;
+        // If anyone wants to speak, only the FIRST one returns true
+        foreach (var (name, wants) in decisionsThisRound)
+        {
+            if (wants) return name == npcName;
+        }
         
-        // If this is the second NPC and first one passed, force this one to speak
-        if (turnDecisionsThisRound == 2)
-            return true;
+        // If nobody wanted to speak, pick a random NPC
+        if (decisionsThisRound.Count > 0)
+        {
+            int winner = UnityEngine.Random.Range(0, decisionsThisRound.Count);
+            return decisionsThisRound[winner].npcName == npcName;
+        }
         
         return false;
     }

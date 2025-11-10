@@ -1,17 +1,18 @@
 using UnityEngine;
 using System.Collections;
+using TMPro;
 
 public class WhisperContinuous : MonoBehaviour
 {
-    public string modelFileName = "ggml-large.bin";
+    public string modelFileName = "ggml-tiny.bin";
     public float chunkDuration = 3f; 
     public AudioSource audioSource;
 
+    [Header("Input Field")]
+    public TMP_InputField inputField;
+
     private string modelPath;
     private string micDevice;
-
-    [Header("Connections")]
-    public LlamaController llamaController; 
 
     void Start()
     {
@@ -22,6 +23,14 @@ public class WhisperContinuous : MonoBehaviour
         {
             Debug.LogError("[Whisper] Model failed to load!");
             return;
+        }
+
+        // Auto-find input field if not assigned
+        if (inputField == null)
+        {
+            var tutorialCanvas = FindObjectOfType<Canvas>();
+            if (tutorialCanvas != null)
+                inputField = tutorialCanvas.GetComponentInChildren<TMP_InputField>();
         }
 
         micDevice = Microphone.devices.Length > 0 ? Microphone.devices[0] : null;
@@ -54,16 +63,13 @@ public class WhisperContinuous : MonoBehaviour
             {
                 UnityMainThreadDispatcher.Enqueue(() =>
                 {
-                    Debug.Log($"[Whisper Result] {result}");
+                    Debug.Log($"[Whisper] Transcribed: {result}");
 
-                    if (llamaController != null)
+                    // Set input field with transcribed text
+                    if (inputField != null)
                     {
-                        //  Send recognized speech directly to Llama
-                        llamaController.GenerateReply(result);
-                    }
-                    else
-                    {
-                        Debug.LogWarning("[Whisper?LLaMA] No LlamaController linked!");
+                        inputField.text = result;
+                        // User must click/submit manually for now
                     }
                 });
             }

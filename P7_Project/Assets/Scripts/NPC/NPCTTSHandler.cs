@@ -128,13 +128,24 @@ public class NPCTTSHandler : MonoBehaviour
             var audioBytes = ttsTask.Result;
             if (audioBytes != null && audioBytes.Length > 0)
             {
+                Debug.Log($"[TTS] Generated {audioBytes.Length} bytes");
                 // Convert to AudioClip
                 request.clip = CreateAudioClip(audioBytes);
                 
-                // Add to pre-rendered queue (ready to play)
-                preRenderedQueue.Enqueue(request);
-                
-                Debug.Log($"✅ TTS audio ready, queue size: {preRenderedQueue.Count}");
+                if (request.clip != null)
+                {
+                    // Add to pre-rendered queue (ready to play)
+                    preRenderedQueue.Enqueue(request);
+                    Debug.Log($"✅ TTS audio ready, queue size: {preRenderedQueue.Count}");
+                }
+                else
+                {
+                    Debug.LogError("[TTS] Failed to create audio clip!");
+                }
+            }
+            else
+            {
+                Debug.LogError($"[TTS] Audio generation failed! audioBytes={audioBytes}, length={audioBytes?.Length}");
             }
         }
         
@@ -163,8 +174,13 @@ public class NPCTTSHandler : MonoBehaviour
             
             if (request.clip != null)
             {
+                Debug.Log($"[TTS] Queued clip ready for playback: {request.clip.name}");
                 request.onStartPlayback?.Invoke();
                 yield return StartCoroutine(PlayAudioClip(request.clip));
+            }
+            else
+            {
+                Debug.LogWarning("[TTS] Clip is null in queue!");
             }
         }
     }
@@ -174,6 +190,12 @@ public class NPCTTSHandler : MonoBehaviour
     /// </summary>
     private AudioClip CreateAudioClip(byte[] audioBytes)
     {
+        if (audioBytes == null || audioBytes.Length == 0)
+        {
+            Debug.LogError("[TTS] AudioBytes are empty or null!");
+            return null;
+        }
+        
         int sampleCount = audioBytes.Length / 2;
         float[] audioData = new float[sampleCount];
         for (int i = 0; i < sampleCount; i++)
@@ -181,6 +203,7 @@ public class NPCTTSHandler : MonoBehaviour
         
         AudioClip clip = AudioClip.Create($"TTS_{Time.time}", sampleCount, 1, 22050, false);
         clip.SetData(audioData, 0);
+        Debug.Log($"[TTS] 🎵 Created audio clip: {sampleCount} samples ({sampleCount / 22050.0f}s)");
         return clip;
     }
     
@@ -189,15 +212,40 @@ public class NPCTTSHandler : MonoBehaviour
     /// </summary>
     private IEnumerator PlayAudioClip(AudioClip clip)
     {
-        if (audioSource == null || clip == null) yield break;
+        if (audioSource == null)
+        {
+            Debug.LogError("[TTS] AudioSource is NULL! Cannot play audio.");
+            yield break;
+        }
+        
+        if (clip == null)
+        {
+            Debug.LogError("[TTS] AudioClip is NULL! Cannot play audio.");
+            yield break;
+        }
+        
+        Debug.Log($"[TTS] 🔊 Playing audio clip: {clip.name} (length: {clip.length}s, samples: {clip.samples})");
         
         isCurrentlyPlaying = true;
         audioSource.clip = clip;
+        
+        if (!audioSource.gameObject.activeInHierarchy)
+            Debug.LogError("[TTS] AudioSource GameObject is inactive!");
+        
+        if (!audioSource.enabled)
+            Debug.LogError("[TTS] AudioSource component is disabled!");
+        
         audioSource.Play();
+        Debug.Log($"[TTS] Audio playback started. isPlaying={audioSource.isPlaying}");
         
+        int frames = 0;
         while (audioSource.isPlaying)
+        {
+            frames++;
             yield return null;
+        }
         
+        Debug.Log($"[TTS] ✅ Audio playback completed (waited {frames} frames)");
         isCurrentlyPlaying = false;
     }
     
@@ -211,28 +259,68 @@ public class NPCTTSHandler : MonoBehaviour
         
         if (string.IsNullOrEmpty(cleanText)) return new byte[0];
         
+        // Try Piper first (high quality), fallback to pyttsx3 (basic TTS)
         string script = $@"
-from piper import PiperVoice
 import sys
+import os
+import tempfile
 
-voice = PiperVoice.load('{voiceName}.onnx')
-text = '{cleanText}'
+# Try Piper first (preferred method - high quality)
+try:
+    from piper import PiperVoice
+    voice = PiperVoice.load('{voiceName}.onnx')
+    text = '{cleanText}'
+    
+    audio_data = []
+    for chunk in voice.synthesize(text):
+        audio_data.extend(chunk.audio_int16_bytes)
+    
+    sys.stdout.buffer.write(bytes(audio_data))
+    sys.exit(0)
+except Exception as e:
+    sys.stderr.write(f'Piper failed: {{str(e)}}')
 
-audio_data = []
-for chunk in voice.synthesize(text):
-    audio_data.extend(chunk.audio_int16_bytes)
-
-sys.stdout.buffer.write(bytes(audio_data))
+# Fallback to pyttsx3 (basic but reliable)
+try:
+    import pyttsx3
+    
+    engine = pyttsx3.init()
+    engine.setProperty('rate', 150)  # Speed
+    engine.setProperty('volume', 1.0)  # Volume
+    
+    # Generate to temp WAV file
+    temp_audio = tempfile.mktemp(suffix='.wav')
+    engine.save_to_file('{cleanText}', temp_audio)
+    engine.runAndWait()
+    
+    # Read and output WAV bytes
+    if os.path.exists(temp_audio):
+        with open(temp_audio, 'rb') as f:
+            audio_data = f.read()
+        os.remove(temp_audio)
+        
+        sys.stdout.buffer.write(audio_data)
+        sys.exit(0)
+    else:
+        sys.stderr.write('pyttsx3: WAV file not created')
+        sys.exit(1)
+        
+except Exception as e:
+    sys.stderr.write(f'pyttsx3 failed: {{str(e)}}')
+    sys.exit(1)
 ";
 
         System.IO.File.WriteAllText(tempScript, script);
         
         var process = new System.Diagnostics.Process();
-        process.StartInfo.FileName = "python";
+        process.StartInfo.FileName = LLMConfig.Instance != null 
+            ? LLMConfig.Instance.GetPythonExecutablePath() 
+            : "python";
         process.StartInfo.Arguments = $"\"{tempScript}\"";
         process.StartInfo.UseShellExecute = false;
         process.StartInfo.CreateNoWindow = true;
         process.StartInfo.RedirectStandardOutput = true;
+        process.StartInfo.RedirectStandardError = true;
         
         process.Start();
         
@@ -246,7 +334,19 @@ sys.stdout.buffer.write(bytes(audio_data))
                 audioBytes.Add(buffer[i]);
         }
         
+        // Read error output if any
+        string errorOutput = process.StandardError.ReadToEnd();
+        
         process.WaitForExit();
+        
+        if (process.ExitCode != 0)
+        {
+            if (!string.IsNullOrEmpty(errorOutput))
+                Debug.LogError($"[TTS] Error: {errorOutput}");
+            else
+                Debug.LogError("[TTS] TTS generation failed with no error message");
+        }
+        
         process?.Dispose();
         System.IO.File.Delete(tempScript);
         
