@@ -304,14 +304,25 @@ public class NPCChatInstance : MonoBehaviour
     cts?.Dispose();
     cts = new CancellationTokenSource();
 
-        // Build prompt with memory
-        string fullSystemPrompt = BuildPromptWithMemory();
-
-        var messages = new List<OllamaChatClient.ChatMessage>
-        {
-            new OllamaChatClient.ChatMessage { role = "system", content = fullSystemPrompt },
-            new OllamaChatClient.ChatMessage { role = "user", content = messageText }
-        };
+        // Build messages with memory
+        var messages = new List<OllamaChatClient.ChatMessage>();
+        
+        // Add system prompt
+        messages.Add(new OllamaChatClient.ChatMessage 
+        { 
+            role = "system", 
+            content = npcProfile.GetFullSystemPrompt() 
+        });
+        
+        // Add conversation history from memory
+        messages.AddRange(memory.GetConversationHistory());
+        
+        // Add current user message
+        messages.Add(new OllamaChatClient.ChatMessage 
+        { 
+            role = "user", 
+            content = messageText 
+        });
 
         // Clear output and reset metadata parsing
         if (outputText) outputText.text = "";
@@ -348,24 +359,6 @@ public class NPCChatInstance : MonoBehaviour
         
         LogMemoryState();
         FinishSpeaking();
-    }
-
-    /// <summary>
-    /// Build system prompt with memory context
-    /// </summary>
-    private string BuildPromptWithMemory()
-    {
-        var promptBuilder = new StringBuilder(npcProfile.GetFullSystemPrompt());
-
-        string mediumTermContext = memory.GetMediumTermContext();
-        if (!string.IsNullOrEmpty(mediumTermContext))
-            promptBuilder.Append("\n\n").Append(mediumTermContext);
-
-        string shortTermContext = memory.GetShortTermContext();
-        if (!string.IsNullOrEmpty(shortTermContext))
-            promptBuilder.Append("\n\n").Append(shortTermContext);
-
-        return promptBuilder.ToString();
     }
 
     /// <summary>
@@ -565,22 +558,33 @@ public class NPCChatInstance : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Receive message from another NPC - INTERVIEWERS DON'T RESPOND TO EACH OTHER
-    /// </summary>
-    public void ReceiveExternalMessage(string senderName, string message)
+    private void LogMemoryState()
     {
-        memory.AddDialogueTurn(senderName, message);
-        Debug.Log($"📨 [{npcProfile.npcName}] Heard {senderName} (not responding - interviewer mode)");
-        // Interviewers don't respond to each other, only to user
+        int turnCount = memory.GetCount();
+        Debug.Log($"🧠 [{npcProfile.npcName}] Memory updated ({turnCount} turns stored).");
+
+        // Update UI if available
+        if (memoryDisplayText != null)
+        {
+            string display = memory.GetShortTermContext();
+            memoryDisplayText.text = string.IsNullOrEmpty(display) ? string.Empty : display;
+        }
     }
 
-    /// <summary>
-    /// Add a fact to NPC's medium-term memory
-    /// </summary>
-    public void LearnFact(string fact)
+    [ContextMenu("Clear Memory")]
+    public void ClearMemory()
     {
-        memory.AddFact(fact);
+        memory.ClearAll();
+        Debug.Log($"🔄 [{npcProfile.npcName}] Memory cleared");
+
+        if (memoryDisplayText != null)
+            memoryDisplayText.text = string.Empty;
+    }
+    
+    [ContextMenu("Show Memory")]
+    public void ShowMemory()
+    {
+        LogMemoryState();
     }
 
     private void ResetMetadataParsing()
@@ -619,34 +623,5 @@ public class NPCChatInstance : MonoBehaviour
 
         bool immediate = !string.IsNullOrEmpty(speakerName) && speakerName == npcProfile.npcName;
         npcProfile.animatorConfig.SetSpeakerTarget(target, immediate);
-    }
-
-    private void LogMemoryState()
-    {
-        int factCount = memory.GetFactCount();
-        Debug.Log($"🧠 [{npcProfile.npcName}] Memory updated (short-term cap {memory.shortTermCapacity}, facts {factCount}).");
-
-        // Update UI if available
-        if (memoryDisplayText != null)
-        {
-            string display = memory.GetShortTermContext();
-            memoryDisplayText.text = string.IsNullOrEmpty(display) ? string.Empty : display;
-        }
-    }
-
-    [ContextMenu("Clear Memory")]
-    public void ClearMemory()
-    {
-        memory.ClearAll();
-        Debug.Log($"🔄 [{npcProfile.npcName}] Memory cleared");
-
-        if (memoryDisplayText != null)
-            memoryDisplayText.text = string.Empty;
-    }
-    
-    [ContextMenu("Show Memory")]
-    public void ShowMemory()
-    {
-        LogMemoryState();
     }
 }

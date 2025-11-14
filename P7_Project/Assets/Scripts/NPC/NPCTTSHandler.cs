@@ -13,6 +13,9 @@ public class NPCTTSHandler : MonoBehaviour
 {
     private AudioSource audioSource;
     private string voiceName;
+    [Header("Python Execution")]
+    [Tooltip("Optional explicit path to python executable for TTS generation. Leave empty to use system python.")]
+    public string pythonExecutablePath = "";
     
     private readonly Queue<TTSRequest> ttsQueue = new Queue<TTSRequest>();
     private readonly Queue<TTSRequest> preRenderedQueue = new Queue<TTSRequest>();
@@ -327,9 +330,7 @@ except Exception as e:
         System.IO.File.WriteAllText(tempScript, script);
         
         var process = new System.Diagnostics.Process();
-        process.StartInfo.FileName = LLMConfig.Instance != null 
-            ? LLMConfig.Instance.GetPythonExecutablePath() 
-            : "python";
+        process.StartInfo.FileName = GetPythonExecutablePath();
         process.StartInfo.Arguments = $"\"{tempScript}\"";
         process.StartInfo.UseShellExecute = false;
         process.StartInfo.CreateNoWindow = true;
@@ -365,6 +366,14 @@ except Exception as e:
         System.IO.File.Delete(tempScript);
         
         return audioBytes.ToArray();
+    }
+
+    private string GetPythonExecutablePath()
+    {
+        if (!string.IsNullOrEmpty(pythonExecutablePath))
+            return pythonExecutablePath;
+
+        return "python";
     }
     
     /// <summary>

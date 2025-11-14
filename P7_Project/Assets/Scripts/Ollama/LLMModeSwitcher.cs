@@ -33,7 +33,16 @@ public class LLMModeSwitcher : MonoBehaviour
         {
             LLMConfig.Instance.SetMode(LLMMode.LocalGGUF);
             Debug.Log("[LLMModeSwitcher] Switched to LocalGGUF mode");
-            Debug.Log($"[LLMModeSwitcher] Model path: {LLMConfig.Instance.modelPath}");
+            var controller = LLMConfig.Instance.GetLlamaController();
+            if (controller != null)
+            {
+                string modelPath = System.IO.Path.Combine(Application.streamingAssetsPath, "models", controller.modelFileName);
+                Debug.Log($"[LLMModeSwitcher] Model path: {modelPath}");
+            }
+            else
+            {
+                Debug.LogWarning("[LLMModeSwitcher] No LlamaController found for local mode.");
+            }
         }
         else
         {
@@ -64,8 +73,17 @@ public class LLMModeSwitcher : MonoBehaviour
             
             if (LLMConfig.Instance.IsLocalMode)
             {
-                Debug.Log($"  - Model path: {LLMConfig.Instance.modelPath}");
-                Debug.Log($"  - Model name: {LLMConfig.Instance.modelName}");
+                var controller = LLMConfig.Instance.GetLlamaController();
+                if (controller != null)
+                {
+                    string modelPath = System.IO.Path.Combine(Application.streamingAssetsPath, "models", controller.modelFileName);
+                    Debug.Log($"  - Model path: {modelPath}");
+                    Debug.Log($"  - Model name: {controller.modelFileName}");
+                }
+                else
+                {
+                    Debug.LogWarning("  - No LlamaController found for local mode.");
+                }
             }
             else
             {

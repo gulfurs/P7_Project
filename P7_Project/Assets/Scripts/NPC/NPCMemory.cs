@@ -3,25 +3,19 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Manages NPC memory - both short-term dialogue and medium-term facts
+/// Manages NPC memory - conversation history that gets sent to the LLM
 /// </summary>
 [Serializable]
 public class NPCMemory
 {
-    [Header("Short-term Memory (Recent Dialogue)")]
+    [Header("Conversation Memory")]
     [Tooltip("Number of recent conversation turns to remember")]
-    public int shortTermCapacity = 5;
+    public int shortTermCapacity = 10;
     
     private readonly List<DialogueTurn> shortTermMemory = new List<DialogueTurn>();
     
-    [Header("Medium-term Memory (Key Facts)")]
-    [Tooltip("Maximum number of facts to remember")]
-    public int mediumTermCapacity = 20;
-    
-    private readonly List<string> mediumTermMemory = new List<string>();
-    
     /// <summary>
-    /// Add a dialogue turn to short-term memory
+    /// Add a dialogue turn to memory
     /// </summary>
     public void AddDialogueTurn(string speaker, string message)
     {
@@ -38,40 +32,29 @@ public class NPCMemory
     }
     
     /// <summary>
-    /// Add a key fact to medium-term memory
+    /// Get conversation history as message array for LLM
+    /// Converts dialogue turns to proper chat message format
     /// </summary>
-    public void AddFact(string fact)
+    public List<OllamaChatClient.ChatMessage> GetConversationHistory()
     {
-        if (string.IsNullOrEmpty(fact) || mediumTermMemory.Contains(fact)) 
-            return;
+        var messages = new List<OllamaChatClient.ChatMessage>();
         
-        mediumTermMemory.Add(fact);
+        foreach (var turn in shortTermMemory)
+        {
+            // Map speaker names to roles
+            string role = turn.speaker == "User" ? "user" : "assistant";
+            messages.Add(new OllamaChatClient.ChatMessage 
+            { 
+                role = role, 
+                content = turn.message 
+            });
+        }
         
-        // Keep within capacity
-        while (mediumTermMemory.Count > mediumTermCapacity)
-            mediumTermMemory.RemoveAt(0);
-        
-        Debug.Log($"💡 New fact learned: {fact}");
+        return messages;
     }
     
     /// <summary>
-    /// Get all facts as a list
-    /// </summary>
-    public List<string> GetAllFacts()
-    {
-        return new List<string>(mediumTermMemory);
-    }
-
-    /// <summary>
-    /// Get current fact count without allocating
-    /// </summary>
-    public int GetFactCount()
-    {
-        return mediumTermMemory.Count;
-    }
-    
-    /// <summary>
-    /// Get short-term memory as formatted string for prompt
+    /// Get short-term memory as formatted string for UI display
     /// </summary>
     public string GetShortTermContext()
     {
@@ -82,14 +65,6 @@ public class NPCMemory
             context.AppendFormat("{0}: {1}\n", turn.speaker, turn.message);
         
         return context.ToString();
-    }
-    
-    /// <summary>
-    /// Get medium-term memory as formatted string for prompt
-    /// </summary>
-    public string GetMediumTermContext()
-    {
-        return mediumTermMemory.Count == 0 ? "" : "Things you remember:\n- " + string.Join("\n- ", mediumTermMemory);
     }
     
     /// <summary>
@@ -106,15 +81,14 @@ public class NPCMemory
     public void ClearAll()
     {
         shortTermMemory.Clear();
-        mediumTermMemory.Clear();
     }
     
     /// <summary>
-    /// Clear only short-term memory
+    /// Get current memory count
     /// </summary>
-    public void ClearShortTerm()
+    public int GetCount()
     {
-        shortTermMemory.Clear();
+        return shortTermMemory.Count;
     }
 }
 

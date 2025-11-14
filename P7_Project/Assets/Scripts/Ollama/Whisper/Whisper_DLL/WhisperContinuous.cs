@@ -24,9 +24,6 @@ public class WhisperContinuous : MonoBehaviour
     private AudioClip pushToTalkClip;
     private bool isRecordingForPushToTalk = false;
 
-    // ? NEW ? � reference to LLaMA
-    private LlamaController llama;
-
     void Start()
     {
         modelPath = Application.streamingAssetsPath + "/Whisper/" + modelFileName;
@@ -37,11 +34,6 @@ public class WhisperContinuous : MonoBehaviour
             Debug.LogError("[Whisper] Model failed to load!");
             return;
         }
-
-        // ? NEW ? � find LLaMA in scene
-        llama = FindObjectOfType<LlamaController>();
-        if (llama == null)
-            Debug.LogWarning("[Whisper] No LlamaController found in scene!");
 
         if (inputField == null)
         {
@@ -140,10 +132,21 @@ public class WhisperContinuous : MonoBehaviour
                 Debug.Log($"[Whisper] Transcribed PTT: {result}");
 
                 if (inputField != null)
-                {
                     inputField.text = result;
-                    // Automatically submit the transcribed text
-                    inputField.onSubmit.Invoke(result);
+
+                // Directly notify NPCs instead of relying on inputField.onSubmit
+                var npcManager = NPCManager.Instance;
+                if (npcManager != null && npcManager.npcInstances.Count > 0)
+                {
+                    var firstNPC = npcManager.npcInstances[0];
+                    if (firstNPC != null)
+                    {
+                        firstNPC.ProcessUserAnswer(result);
+                    }
+                }
+                else
+                {
+                    Debug.LogWarning("[Whisper] No NPCs found to process transcription.");
                 }
             });
         }

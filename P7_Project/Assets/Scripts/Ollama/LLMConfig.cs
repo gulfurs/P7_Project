@@ -12,8 +12,8 @@ public class LLMConfig : MonoBehaviour
     public LLMMode mode = LLMMode.OllamaHTTP;
 
     [Header("Local GGUF Model")]
-    public string modelPath = "models/llama3.gguf";
-    public string modelName = "llama3";
+    [Tooltip("Reference to the LlamaController in the scene. This drives the local GGUF model.")]
+    public LlamaController llamaController;
 
     [Header("Ollama HTTP Server")]
     public string ollamaEndpoint = "http://localhost:11434/api/chat";
@@ -32,10 +32,6 @@ public class LLMConfig : MonoBehaviour
     [Range(0.1f, 1.0f)]
     public float topP = 0.9f;
 
-    [Header("Python TTS Configuration")]
-    [Tooltip("Path to Python executable for TTS generation. Leave empty to auto-detect.")]
-    public string pythonExecutablePath = "";
-
     private void Awake()
     {
         if (Instance != null && Instance != this)
@@ -50,18 +46,6 @@ public class LLMConfig : MonoBehaviour
     }
 
     /// <summary>
-    /// Get the Python executable path for TTS generation
-    /// Uses custom path if set in Inspector, otherwise uses system Python
-    /// </summary>
-    public string GetPythonExecutablePath()
-    {
-        if (!string.IsNullOrEmpty(pythonExecutablePath))
-            return pythonExecutablePath;
-        
-        return "python";  // Use system Python from PATH
-    }
-
-    /// <summary>
     /// Validate configuration on startup
     /// </summary>
     private void ValidateConfiguration()
@@ -69,8 +53,10 @@ public class LLMConfig : MonoBehaviour
         Debug.Log($"[LLMConfig] ✓ Initialized with {mode} mode");
         if (mode == LLMMode.OllamaHTTP)
             Debug.Log($"[LLMConfig] ✓ Ollama: {ollamaEndpoint} with model {ollamaModel}");
+        else if (llamaController != null)
+            Debug.Log($"[LLMConfig] ✓ Local GGUF via {llamaController.gameObject.name}");
         else
-            Debug.Log($"[LLMConfig] ✓ Local GGUF: {modelPath}");
+            Debug.LogWarning("[LLMConfig] ⚠ Local mode selected but no LlamaController assigned.");
     }
 
     /// <summary>
@@ -90,6 +76,20 @@ public class LLMConfig : MonoBehaviour
     {
         mode = newMode;
         Debug.Log($"[LLMConfig] Switched to {mode} mode");
+    }
+
+    /// <summary>
+    /// Get the active LlamaController configured for local mode.
+    /// </summary>
+    public LlamaController GetLlamaController()
+    {
+        if (llamaController == null)
+        {
+            llamaController = FindObjectOfType<LlamaController>();
+            if (llamaController == null)
+                Debug.LogWarning("[LLMConfig] LlamaController not found in scene.");
+        }
+        return llamaController;
     }
 }
 

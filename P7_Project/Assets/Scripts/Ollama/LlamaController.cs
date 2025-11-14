@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text;
 using System.Runtime.InteropServices;
 using UnityEngine;
@@ -40,12 +41,6 @@ public class LlamaController : MonoBehaviour
 
     private bool initialized;
 
-    // Sliding-window memory (keeps stable context)
-    private const int MAX_CONTEXT_CHARS = 28001;
-    private const int MIN_CONTEXT_AFTER_TRIM = 18001;
-
-    private readonly StringBuilder conversation = new StringBuilder();
-
     private void Start()
     {
         string path = System.IO.Path.Combine(
@@ -65,35 +60,66 @@ public class LlamaController : MonoBehaviour
 
         initialized = true;
 
-        conversation.AppendLine("<|system|>");
-        conversation.AppendLine(systemPrompt);
-        conversation.AppendLine();
-
         Debug.Log("[LLaMA] Model initialized.");
     }
 
-    // Called by WhisperContinuous
-    public void GenerateReply(string userMessage)
+    /// <summary>
+    /// Generate reply from a list of chat messages (stateless - no internal memory)
+    /// </summary>
+    public string GenerateReply(List<OllamaChatClient.ChatMessage> messages)
     {
         if (!initialized)
         {
             Debug.LogError("[LLaMA] Not initialized.");
-            return;
+            return "[Error: Not initialized]";
         }
 
-        if (string.IsNullOrWhiteSpace(userMessage))
-            return;
+        if (messages == null || messages.Count == 0)
+        {
+            Debug.LogWarning("[LLaMA] No messages provided.");
+            return "[Error: No messages]";
+        }
 
-        AddUserMessage(userMessage);
-        TrimMemory();
+        // Build prompt from messages
+        var promptBuilder = new StringBuilder();
+        
+        // Add system prompt
+        promptBuilder.AppendLine("<|system|>");
+        promptBuilder.AppendLine(systemPrompt);
+        promptBuilder.AppendLine();
+        
+        // Add conversation history
+        foreach (var msg in messages)
+        {
+            if (msg.role == "system")
+            {
+                // Override default system prompt if provided
+                promptBuilder.Clear();
+                promptBuilder.AppendLine("<|system|>");
+                promptBuilder.AppendLine(msg.content);
+                promptBuilder.AppendLine();
+            }
+            else if (msg.role == "user")
+            {
+                promptBuilder.AppendLine("<|user|>");
+                promptBuilder.AppendLine(msg.content.Trim());
+                promptBuilder.AppendLine();
+            }
+            else if (msg.role == "assistant")
+            {
+                promptBuilder.AppendLine("<|assistant|>");
+                promptBuilder.AppendLine(msg.content.Trim());
+                promptBuilder.AppendLine();
+            }
+        }
 
-        string fullPrompt = conversation.ToString();
-        Debug.Log($"[LLaMA] Sending prompt:\n{fullPrompt}");
+        string fullPrompt = promptBuilder.ToString();
+        Debug.Log($"[LLaMA] Sending prompt ({fullPrompt.Length} chars)");
 
         if (!LlamaBridge.llama_generate_stream_begin(fullPrompt))
         {
             Debug.LogError("[LLaMA] llama_generate_stream_begin FAILED");
-            return;
+            return "[Error: Generation failed]";
         }
 
         StringBuilder response = new StringBuilder();
@@ -113,51 +139,10 @@ public class LlamaController : MonoBehaviour
         if (string.IsNullOrEmpty(result))
             result = "[Error: decode failed]";
 
-        AddAssistantMessage(result);
         assistantPreview = result;
-
         Debug.Log($"[LLaMA] Assistant: {result}");
-    }
-
-    private void AddUserMessage(string text)
-    {
-        conversation.AppendLine("<|user|>");
-        conversation.AppendLine(text.Trim());
-        conversation.AppendLine();
-    }
-
-    private void AddAssistantMessage(string text)
-    {
-        conversation.AppendLine("<|assistant|>");
-        conversation.AppendLine(text.Trim());
-        conversation.AppendLine();
-    }
-
-    private void TrimMemory()
-    {
-        if (conversation.Length <= MAX_CONTEXT_CHARS)
-            return;
-
-        string full = conversation.ToString();
-        int start = Math.Max(0, full.Length - MIN_CONTEXT_AFTER_TRIM);
-
-        int safeStart = full.IndexOf("<|user|>", start, StringComparison.Ordinal);
-        if (safeStart == -1)
-            safeStart = full.IndexOf("<|assistant|>", start, StringComparison.Ordinal);
-
-        if (safeStart == -1)
-            safeStart = start;
-
-        string systemBlock =
-            "<|system|>\n" + systemPrompt + "\n\n";
-
-        string tail = full.Substring(safeStart);
-
-        conversation.Clear();
-        conversation.Append(systemBlock);
-        conversation.Append(tail);
-
-        Debug.Log($"[LLaMA] Memory trimmed ? {conversation.Length} chars");
+        
+        return result;
     }
 
     private void OnDestroy()

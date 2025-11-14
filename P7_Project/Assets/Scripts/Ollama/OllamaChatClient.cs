@@ -52,6 +52,13 @@ public class OllamaChatClient : MonoBehaviour
     public async Task<ChatResponse> SendChatAsync(List<ChatMessage> messages, float temperature, float repeatPenalty, 
         Action<string> onStreamUpdate = null, Action<string> onTokenReceived = null, CancellationToken cancellationToken = default)
     {
+        // Check if using local GGUF model
+        if (LLMConfig.Instance.IsLocalMode)
+        {
+            return await SendLocalChatAsync(messages, onStreamUpdate, onTokenReceived, cancellationToken);
+        }
+        
+        // Otherwise use Ollama HTTP
         try
         {
             // Read from LLMConfig every time (single source of truth)
@@ -158,5 +165,55 @@ public class OllamaChatClient : MonoBehaviour
             else sb.Append(c);
         }
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// Send chat using local GGUF model via LlamaController
+    /// </summary>
+    private async Task<ChatResponse> SendLocalChatAsync(List<ChatMessage> messages,
+        Action<string> onStreamUpdate = null, Action<string> onTokenReceived = null, CancellationToken cancellationToken = default)
+    {
+        return await Task.Run(() =>
+        {
+            try
+            {
+                var controller = LLMConfig.Instance.GetLlamaController();
+                if (controller == null)
+                {
+                    return new ChatResponse
+                    {
+                        content = "",
+                        isComplete = true,
+                        error = "LlamaController not found for local mode"
+                    };
+                }
+
+                // Use the new stateless GenerateReply that accepts messages
+                string response = controller.GenerateReply(messages);
+
+                // Simulate callbacks (local generation is blocking, not streaming)
+                if (!string.IsNullOrEmpty(response))
+                {
+                    onStreamUpdate?.Invoke(response);
+                    onTokenReceived?.Invoke(response);
+                }
+
+                return new ChatResponse
+                {
+                    content = response,
+                    isComplete = true,
+                    error = response.StartsWith("[Error:") ? response : null
+                };
+            }
+            catch (Exception ex)
+            {
+                return new ChatResponse
+                {
+                    content = "",
+                    isComplete = true,
+                    error = ex.Message
+                };
+            }
+        }, cancellationToken);
     }
 }
