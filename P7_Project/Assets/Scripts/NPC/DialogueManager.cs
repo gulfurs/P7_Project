@@ -6,9 +6,14 @@ using UnityEngine;
 /// </summary>
 public class DialogueManager : MonoBehaviour
 {
+    public enum InterviewPhase { Introduction, Main, Conclusion }
+
     public static DialogueManager Instance { get; private set; }
     
     [Header("Interview State")]
+    public InterviewPhase currentPhase = InterviewPhase.Introduction;
+    [Tooltip("The number of total turns before the interview enters the Conclusion phase.")]
+    public int conclusionTurnThreshold = 10;
     public string currentSpeaker = "";
     public string lastSpeakerName = "";
     
@@ -85,6 +90,13 @@ public class DialogueManager : MonoBehaviour
         
         Debug.Log($"🎤 {npcName} granted turn (#{totalTurns})");
         NPCManager.Instance?.NotifySpeakerChanged(npcName);
+
+        // Check if it's time to conclude the interview
+        if (currentPhase == InterviewPhase.Main && totalTurns >= conclusionTurnThreshold)
+        {
+            currentPhase = InterviewPhase.Conclusion;
+            Debug.Log("📜 Interview phase changed to Conclusion");
+        }
     }
     
     public void ReleaseTurn(string npcName)
@@ -94,6 +106,13 @@ public class DialogueManager : MonoBehaviour
             currentSpeaker = "";
             Debug.Log($"✅ {npcName} released turn");
             NPCManager.Instance?.NotifySpeakerChanged(string.Empty);
+
+            // Auto-transition from intro to main interview after first turn
+            if (currentPhase == InterviewPhase.Introduction)
+            {
+                currentPhase = InterviewPhase.Main;
+                Debug.Log("📜 Interview phase changed to Main");
+            }
         }
     }
     
@@ -136,6 +155,30 @@ public class DialogueManager : MonoBehaviour
         currentSpeaker = "";
         lastSpeakerName = "";
         totalTurns = 0;
-        Debug.Log("🔄 Interview cleared");
+        currentPhase = InterviewPhase.Introduction; // Reset phase
+        Debug.Log("🔄 Interview cleared and reset to Introduction phase.");
+    }
+
+    /// <summary>
+    /// Kicks off the interview by having the first NPC introduce themselves.
+    /// </summary>
+    public void StartInterview()
+    {
+        if (currentPhase != InterviewPhase.Introduction || totalTurns > 0)
+        {
+            Debug.LogWarning("[DialogueManager] StartInterview called but interview has already started.");
+            return;
+        }
+
+        var npcInstances = NPCManager.Instance?.npcInstances;
+        if (npcInstances != null && npcInstances.Count > 0)
+        {
+            var firstNpc = npcInstances[0];
+            if (firstNpc != null)
+            {
+                Debug.Log($"[DialogueManager] Kicking off interview. Asking {firstNpc.npcProfile.npcName} to introduce themselves.");
+                firstNpc.InitiateIntroduction();
+            }
+        }
     }
 }

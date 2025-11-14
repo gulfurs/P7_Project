@@ -258,7 +258,15 @@ public class NPCTTSHandler : MonoBehaviour
         string cleanText = text.Replace("'", "\\'").Replace("\"", "\\\"").Replace("\n", " ").Trim();
         
         if (string.IsNullOrEmpty(cleanText)) return new byte[0];
-        
+
+        // --- Start of Fix: Use absolute path for TTS model from project root ---
+        // Get project root by going one level up from the Assets folder
+        string projectRoot = System.IO.Directory.GetParent(Application.dataPath).FullName;
+        string modelPath = System.IO.Path.Combine(projectRoot, $"{voiceName}.onnx");
+        // Python requires forward slashes, even on Windows
+        modelPath = modelPath.Replace("\\", "/"); 
+        // --- End of Fix ---
+
         // Try Piper first (high quality), fallback to pyttsx3 (basic TTS)
         string script = $@"
 import sys
@@ -268,7 +276,13 @@ import tempfile
 # Try Piper first (preferred method - high quality)
 try:
     from piper import PiperVoice
-    voice = PiperVoice.load('{voiceName}.onnx')
+    
+    model_path = r'{modelPath}' # Use raw string for path
+    if not os.path.exists(model_path):
+        sys.stderr.write(f'Piper Error: Model file not found at {{model_path}}')
+        sys.exit(1)
+
+    voice = PiperVoice.load(model_path)
     text = '{cleanText}'
     
     audio_data = []
@@ -278,7 +292,7 @@ try:
     sys.stdout.buffer.write(bytes(audio_data))
     sys.exit(0)
 except Exception as e:
-    sys.stderr.write(f'Piper failed: {{str(e)}}')
+    sys.stderr.write(f'Piper failed: {{str(e)}}. Check if model exists and piper-tts is installed.')
 
 # Fallback to pyttsx3 (basic but reliable)
 try:
