@@ -22,7 +22,7 @@ public class WhisperContinuous : MonoBehaviour
         modelPath = Application.streamingAssetsPath + "/Whisper/" + modelFileName;
         Debug.Log("[Whisper] Loading model: " + modelPath);
 
-        if (!WWhisperManager.InitModel(modelPath))
+        if (!WhisperManager.InitModel(modelPath))
         {
             Debug.LogError("[Whisper] Model failed to load!");
             return;
@@ -62,7 +62,7 @@ public class WhisperContinuous : MonoBehaviour
             string path = Application.persistentDataPath + "/mic_chunk.wav";
             SaveWav(path, clip);
 
-            string result = WWhisperManager.TranscribePartial(path);
+            string result = WhisperManager.TranscribePartial(path);
 
             if (!string.IsNullOrWhiteSpace(result) && result != "[BLANK_AUDIO]")
             {
@@ -91,6 +91,6 @@ public class WhisperContinuous : MonoBehaviour
 
     private void OnApplicationQuit()
     {
-        WWhisperManager.Unload();
+        WhisperManager.Unload();
     }
 }

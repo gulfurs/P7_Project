@@ -41,8 +41,8 @@ public class LlamaController : MonoBehaviour
     private bool initialized;
 
     // Sliding-window memory (keeps stable context)
-    private const int MAX_CONTEXT_CHARS = 280000;
-    private const int MIN_CONTEXT_AFTER_TRIM = 180000;
+    private const int MAX_CONTEXT_CHARS = 28001;
+    private const int MIN_CONTEXT_AFTER_TRIM = 18001;
 
     private readonly StringBuilder conversation = new StringBuilder();
 
