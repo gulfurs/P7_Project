@@ -122,26 +122,30 @@ public class WhisperContinuous : MonoBehaviour
         string path = Application.persistentDataPath + "/ptt_clip.wav";
         SaveWav(path, pushToTalkClip);
 
-        // Run Whisper on the saved clip
+        // Run Whisper transcription (this is synchronous native call, safe on any thread)
         string result = WhisperManager.Transcribe(path);
 
         if (!string.IsNullOrWhiteSpace(result) && result != "[BLANK_AUDIO]")
         {
+            // Capture result in local variable to ensure thread safety
+            string transcribedText = result;
+            
+            // Queue the UI and NPC updates to run on the main thread
             UnityMainThreadDispatcher.Enqueue(() =>
             {
-                Debug.Log($"[Whisper] Transcribed PTT: {result}");
+                Debug.Log($"[Whisper] Transcribed PTT: {transcribedText}");
 
+                // Update UI
                 if (inputField != null)
-                    inputField.text = result;
+                    inputField.text = transcribedText;
 
-                // Directly notify NPCs instead of relying on inputField.onSubmit
-                var npcManager = NPCManager.Instance;
-                if (npcManager != null && npcManager.npcInstances.Count > 0)
+                // Notify NPCs
+                if (NPCManager.Instance != null && NPCManager.Instance.npcInstances.Count > 0)
                 {
-                    var firstNPC = npcManager.npcInstances[0];
+                    var firstNPC = NPCManager.Instance.npcInstances[0];
                     if (firstNPC != null)
                     {
-                        firstNPC.ProcessUserAnswer(result);
+                        firstNPC.ProcessUserAnswer(transcribedText);
                     }
                 }
                 else
