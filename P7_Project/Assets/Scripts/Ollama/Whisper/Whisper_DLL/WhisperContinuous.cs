@@ -2,10 +2,18 @@ using UnityEngine;
 using System.Collections;
 using TMPro;
 
+public enum RecordingMode
+{
+    Continuous,
+    PushToTalk
+}
+
 public class WhisperContinuous : MonoBehaviour
 {
+    [Header("Whisper Settings")]
+    public RecordingMode mode = RecordingMode.Continuous;
     public string modelFileName = "ggml-tiny.bin";
-    public float chunkDuration = 3f;
+    public float chunkDuration = 3f; 
     public AudioSource audioSource;
 
     [Header("Input Field")]
@@ -13,8 +21,10 @@ public class WhisperContinuous : MonoBehaviour
 
     private string modelPath;
     private string micDevice;
+    private AudioClip pushToTalkClip;
+    private bool isRecordingForPushToTalk = false;
 
-    // ? NEW ? — reference to LLaMA
+    // ? NEW ? ï¿½ reference to LLaMA
     private LlamaController llama;
 
     void Start()
@@ -28,7 +38,7 @@ public class WhisperContinuous : MonoBehaviour
             return;
         }
 
-        // ? NEW ? — find LLaMA in scene
+        // ? NEW ? ï¿½ find LLaMA in scene
         llama = FindObjectOfType<LlamaController>();
         if (llama == null)
             Debug.LogWarning("[Whisper] No LlamaController found in scene!");
@@ -47,8 +57,16 @@ public class WhisperContinuous : MonoBehaviour
             return;
         }
 
-        Debug.Log("[Whisper] Starting continuous recognition on: " + micDevice);
-        StartCoroutine(CaptureMicrophone());
+        // Only start continuous capture if in the correct mode
+        if (mode == RecordingMode.Continuous)
+        {
+            Debug.Log("[Whisper] Starting continuous recognition on: " + micDevice);
+            StartCoroutine(CaptureMicrophone());
+        }
+        else
+        {
+            Debug.Log("[Whisper] Push-to-talk mode enabled. Waiting for input.");
+        }
     }
 
     private IEnumerator CaptureMicrophone()
@@ -62,7 +80,8 @@ public class WhisperContinuous : MonoBehaviour
             string path = Application.persistentDataPath + "/mic_chunk.wav";
             SaveWav(path, clip);
 
-            string result = WhisperManager.TranscribePartial(path);
+            // Run Whisper on this chunk
+            string result = WhisperManager.Transcribe(path);
 
             if (!string.IsNullOrWhiteSpace(result) && result != "[BLANK_AUDIO]")
             {
@@ -72,14 +91,65 @@ public class WhisperContinuous : MonoBehaviour
 
                     if (inputField != null)
                         inputField.text = result;
-
-                    // ? NEW ? — send result to LLaMA
-                    if (llama != null)
-                    {
-                        llama.GenerateReply(result);
-                    }
+                        // In continuous mode, we might want to auto-submit or just display
                 });
             }
+        }
+    }
+
+    /// <summary>
+    /// Starts recording audio for push-to-talk.
+    /// </summary>
+    public void StartPushToTalkRecording()
+    {
+        if (mode != RecordingMode.PushToTalk || isRecordingForPushToTalk || micDevice == null)
+        {
+            return;
+        }
+
+        isRecordingForPushToTalk = true;
+        // Record for a longer duration, as we'll stop it manually
+        pushToTalkClip = Microphone.Start(micDevice, false, 300, 16000); 
+        Debug.Log("[Whisper] Started push-to-talk recording.");
+    }
+
+    /// <summary>
+    /// Stops recording audio for push-to-talk and transcribes the result.
+    /// </summary>
+    public void StopPushToTalkRecordingAndTranscribe()
+    {
+        if (mode != RecordingMode.PushToTalk || !isRecordingForPushToTalk)
+        {
+            return;
+        }
+
+        Microphone.End(micDevice);
+        isRecordingForPushToTalk = false;
+        Debug.Log("[Whisper] Stopped push-to-talk recording. Transcribing...");
+
+        string path = Application.persistentDataPath + "/ptt_clip.wav";
+        SaveWav(path, pushToTalkClip);
+
+        // Run Whisper on the saved clip
+        string result = WhisperManager.Transcribe(path);
+
+        if (!string.IsNullOrWhiteSpace(result) && result != "[BLANK_AUDIO]")
+        {
+            UnityMainThreadDispatcher.Enqueue(() =>
+            {
+                Debug.Log($"[Whisper] Transcribed PTT: {result}");
+
+                if (inputField != null)
+                {
+                    inputField.text = result;
+                    // Automatically submit the transcribed text
+                    inputField.onSubmit.Invoke(result);
+                }
+            });
+        }
+        else
+        {
+            Debug.Log("[Whisper] PTT transcription was blank.");
         }
     }
 
