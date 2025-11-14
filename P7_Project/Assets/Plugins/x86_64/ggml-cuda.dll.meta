@@ -12,26 +12,22 @@ PluginImporter:
   validateReferences: 1
   platformData:
     Android:
-      enabled: 0
+      enabled: 1
       settings:
         AndroidLibraryDependee: UnityLibrary
         AndroidSharedLibraryType: Executable
         CPU: ARMv7
     Any:
-      enabled: 0
+      enabled: 1
       settings:
-<<<<<<< HEAD
         Exclude Android: 0
-=======
-        Exclude Android: 1
->>>>>>> parent of 75896ee (DDL)
         Exclude Editor: 0
         Exclude Linux64: 0
         Exclude OSXUniversal: 0
         Exclude Win: 0
         Exclude Win64: 0
-        Exclude WindowsStoreApps: 1
-        Exclude iOS: 1
+        Exclude WindowsStoreApps: 0
+        Exclude iOS: 0
     Editor:
       enabled: 1
       settings:
@@ -55,7 +51,7 @@ PluginImporter:
       settings:
         CPU: x86_64
     WindowsStoreApps:
-      enabled: 0
+      enabled: 1
       settings:
         CPU: AnyCPU
         DontProcess: false
@@ -63,7 +59,7 @@ PluginImporter:
         SDK: AnySDK
         ScriptingBackend: AnyScriptingBackend
     iOS:
-      enabled: 0
+      enabled: 1
       settings:
         AddToEmbeddedBinaries: false
         CPU: AnyCPU
