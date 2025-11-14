@@ -5,7 +5,7 @@ using TMPro;
 public class WhisperContinuous : MonoBehaviour
 {
     public string modelFileName = "ggml-tiny.bin";
-    public float chunkDuration = 3f; 
+    public float chunkDuration = 3f;
     public AudioSource audioSource;
 
     [Header("Input Field")]
@@ -13,6 +13,9 @@ public class WhisperContinuous : MonoBehaviour
 
     private string modelPath;
     private string micDevice;
+
+    // ? NEW ? — reference to LLaMA
+    private LlamaController llama;
 
     void Start()
     {
@@ -25,7 +28,11 @@ public class WhisperContinuous : MonoBehaviour
             return;
         }
 
-        // Auto-find input field if not assigned
+        // ? NEW ? — find LLaMA in scene
+        llama = FindObjectOfType<LlamaController>();
+        if (llama == null)
+            Debug.LogWarning("[Whisper] No LlamaController found in scene!");
+
         if (inputField == null)
         {
             var tutorialCanvas = FindObjectOfType<Canvas>();
@@ -48,7 +55,6 @@ public class WhisperContinuous : MonoBehaviour
     {
         while (true)
         {
-            // Record a short chunk
             AudioClip clip = Microphone.Start(micDevice, false, (int)chunkDuration, 16000);
             yield return new WaitForSeconds(chunkDuration);
             Microphone.End(micDevice);
@@ -56,7 +62,6 @@ public class WhisperContinuous : MonoBehaviour
             string path = Application.persistentDataPath + "/mic_chunk.wav";
             SaveWav(path, clip);
 
-            // Run Whisper on this chunk
             string result = WWhisperManager.TranscribePartial(path);
 
             if (!string.IsNullOrWhiteSpace(result) && result != "[BLANK_AUDIO]")
@@ -65,11 +70,13 @@ public class WhisperContinuous : MonoBehaviour
                 {
                     Debug.Log($"[Whisper] Transcribed: {result}");
 
-                    // Set input field with transcribed text
                     if (inputField != null)
-                    {
                         inputField.text = result;
-                        // User must click/submit manually for now
+
+                    // ? NEW ? — send result to LLaMA
+                    if (llama != null)
+                    {
+                        llama.GenerateReply(result);
                     }
                 });
             }

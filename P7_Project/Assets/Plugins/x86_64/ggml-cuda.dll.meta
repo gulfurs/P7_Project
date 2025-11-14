@@ -20,7 +20,11 @@ PluginImporter:
     Any:
       enabled: 0
       settings:
+<<<<<<< HEAD
+        Exclude Android: 0
+=======
         Exclude Android: 1
+>>>>>>> parent of 75896ee (DDL)
         Exclude Editor: 0
         Exclude Linux64: 0
         Exclude OSXUniversal: 0

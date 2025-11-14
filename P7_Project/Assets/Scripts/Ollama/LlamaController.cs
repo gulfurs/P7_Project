@@ -1,118 +1,171 @@
 using System;
-using System.IO;
 using System.Text;
 using System.Runtime.InteropServices;
 using UnityEngine;
+
+public static class LlamaBridge
+{
+    private const string DLL_NAME = "llama_unity";
+
+    // Initialise model + internal state (returns true on success)
+    [DllImport(DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public static extern bool llama_init_from_file(
+        [MarshalAs(UnmanagedType.LPStr)] string modelPath);
+
+    // Start a new streamed generation for this prompt
+    [DllImport(DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    [return: MarshalAs(UnmanagedType.I1)]
+    public static extern bool llama_generate_stream_begin(
+        [MarshalAs(UnmanagedType.LPStr)] string prompt);
+
+    // Get next chunk of text. Returns IntPtr.Zero when done.
+    [DllImport(DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public static extern IntPtr llama_generate_stream_next();
+
+    // Free all native resources
+    [DllImport(DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public static extern void llama_free_all();
+}
 
 public class LlamaController : MonoBehaviour
 {
     [Header("Model Settings")]
     public string modelFileName = "llama3.gguf";
-    [TextArea(2, 5)] public string systemPrompt = "System: You are a helpful assistant.";
-    [TextArea(5, 10)] public string userPrompt = "Hello, who are you?";
-    [TextArea(5, 10)] public string responsePreview;
 
-    private StringBuilder memory = new StringBuilder();
-    private const int MAX_MEMORY = 8000;
+    [TextArea(4, 8)]
+    public string systemPrompt = "You are a helpful assistant.";
 
-    private IntPtr ctx;
-    private const string DLL_NAME = "llama_unity";
+    [TextArea(4, 14)]
+    public string assistantPreview;
 
-    // --- Native Imports ---
-    [DllImport(DLL_NAME, EntryPoint = "llama_init_from_file", CallingConvention = CallingConvention.Cdecl)]
-    private static extern IntPtr llama_init_from_file([MarshalAs(UnmanagedType.LPStr)] string modelPath);
+    private bool initialized;
 
-    [DllImport(DLL_NAME, EntryPoint = "llama_free_context", CallingConvention = CallingConvention.Cdecl)]
-    private static extern void llama_free_context(IntPtr ctx);
+    // Sliding-window memory (keeps stable context)
+    private const int MAX_CONTEXT_CHARS = 280000;
+    private const int MIN_CONTEXT_AFTER_TRIM = 180000;
 
-    [DllImport(DLL_NAME, EntryPoint = "llama_generate", CallingConvention = CallingConvention.Cdecl)]
-    private static extern IntPtr llama_generate(IntPtr ctx, [MarshalAs(UnmanagedType.LPStr)] string prompt);
+    private readonly StringBuilder conversation = new StringBuilder();
 
-    void Start()
+    private void Start()
     {
-        memory.AppendLine(systemPrompt);
+        string path = System.IO.Path.Combine(
+            Application.streamingAssetsPath, "models", modelFileName);
 
-        string modelPath = Path.Combine(Application.streamingAssetsPath, "models", modelFileName);
-
-        if (!File.Exists(modelPath))
+        if (!System.IO.File.Exists(path))
         {
-            Debug.LogError($"[LLaMA] Model file not found: {modelPath}");
+            Debug.LogError($"[LLaMA] Model not found at: {path}");
             return;
         }
 
-        // Initialize model safely
-        //ctx = llama_init_from_file(modelPath);
-       // if (ctx == IntPtr.Zero)
-       // {
-       //     Debug.LogError("[LLaMA] Failed to initialize model. Context is null. Check if the model is valid GGUF and matches your llama_unity build.");
-       //     return;
-       // }
+        if (!LlamaBridge.llama_init_from_file(path))
+        {
+            Debug.LogError("[LLaMA] llama_init_from_file failed.");
+            return;
+        }
 
-        Debug.Log("[LLaMA] Model initialized successfully!");
+        initialized = true;
 
-        // Generate an immediate test reply
-       // GenerateReply(userPrompt);
+        conversation.AppendLine("<|system|>");
+        conversation.AppendLine(systemPrompt);
+        conversation.AppendLine();
+
+        Debug.Log("[LLaMA] Model initialized.");
     }
 
-    public void GenerateReply(string input)
+    // Called by WhisperContinuous
+    public void GenerateReply(string userMessage)
     {
-        if (ctx == IntPtr.Zero)
+        if (!initialized)
         {
-            Debug.LogError("[LLaMA] Model not initialized.");
+            Debug.LogError("[LLaMA] Not initialized.");
             return;
         }
 
-        AddUserMessage(input);
-        string fullPrompt = memory.ToString();
+        if (string.IsNullOrWhiteSpace(userMessage))
+            return;
 
-        Debug.Log($"[LLaMA] Generating response for:\n{fullPrompt}");
+        AddUserMessage(userMessage);
+        TrimMemory();
 
-        IntPtr resultPtr = llama_generate(ctx, fullPrompt);
-        if (resultPtr == IntPtr.Zero)
+        string fullPrompt = conversation.ToString();
+        Debug.Log($"[LLaMA] Sending prompt:\n{fullPrompt}");
+
+        if (!LlamaBridge.llama_generate_stream_begin(fullPrompt))
         {
-            Debug.LogError("[LLaMA] llama_generate returned null pointer!");
+            Debug.LogError("[LLaMA] llama_generate_stream_begin FAILED");
             return;
         }
 
-        string result = Marshal.PtrToStringAnsi(resultPtr);
-        result ??= "[Empty response]";
+        StringBuilder response = new StringBuilder();
+
+        while (true)
+        {
+            IntPtr ptr = LlamaBridge.llama_generate_stream_next();
+            if (ptr == IntPtr.Zero) break;
+
+            string token = Marshal.PtrToStringAnsi(ptr);
+            if (string.IsNullOrEmpty(token)) break;
+
+            response.Append(token);
+        }
+
+        string result = response.ToString().Trim();
+        if (string.IsNullOrEmpty(result))
+            result = "[Error: decode failed]";
 
         AddAssistantMessage(result);
-        responsePreview = result;
+        assistantPreview = result;
 
-        Debug.Log($"[LLaMA] Assistant:\n{result}");
+        Debug.Log($"[LLaMA] Assistant: {result}");
     }
 
-    private void AddUserMessage(string msg)
+    private void AddUserMessage(string text)
     {
-        memory.AppendLine($"User: {msg}");
-        memory.AppendLine("Assistant:");
-        TrimMemory();
+        conversation.AppendLine("<|user|>");
+        conversation.AppendLine(text.Trim());
+        conversation.AppendLine();
     }
 
-    private void AddAssistantMessage(string msg)
+    private void AddAssistantMessage(string text)
     {
-        memory.AppendLine($"Assistant: {msg}");
-        TrimMemory();
+        conversation.AppendLine("<|assistant|>");
+        conversation.AppendLine(text.Trim());
+        conversation.AppendLine();
     }
 
     private void TrimMemory()
     {
-        if (memory.Length > MAX_MEMORY)
-        {
-            int cutIndex = memory.Length / 2;
-            memory.Remove(0, cutIndex);
-            memory.Insert(0, systemPrompt + "\n");
-        }
+        if (conversation.Length <= MAX_CONTEXT_CHARS)
+            return;
+
+        string full = conversation.ToString();
+        int start = Math.Max(0, full.Length - MIN_CONTEXT_AFTER_TRIM);
+
+        int safeStart = full.IndexOf("<|user|>", start, StringComparison.Ordinal);
+        if (safeStart == -1)
+            safeStart = full.IndexOf("<|assistant|>", start, StringComparison.Ordinal);
+
+        if (safeStart == -1)
+            safeStart = start;
+
+        string systemBlock =
+            "<|system|>\n" + systemPrompt + "\n\n";
+
+        string tail = full.Substring(safeStart);
+
+        conversation.Clear();
+        conversation.Append(systemBlock);
+        conversation.Append(tail);
+
+        Debug.Log($"[LLaMA] Memory trimmed ? {conversation.Length} chars");
     }
 
-    void OnDestroy()
+    private void OnDestroy()
     {
-        if (ctx != IntPtr.Zero)
+        if (initialized)
         {
-            llama_free_context(ctx);
-            ctx = IntPtr.Zero;
-            Debug.Log("[LLaMA] Freed context.");
+            LlamaBridge.llama_free_all();
+            Debug.Log("[LLaMA] Freed model + context.");
         }
     }
 }
