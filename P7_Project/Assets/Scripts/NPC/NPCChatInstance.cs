@@ -114,11 +114,16 @@ public class NPCChatInstance : MonoBehaviour
         if (npcNameLabel != null && npcProfile != null)
             npcNameLabel.text = npcProfile.npcName;
 
-        // Both NPCs should listen to InputField submissions
-        if (userInput != null)
+        // ONLY the first NPC instance should listen to InputField submissions to avoid duplicate events.
+        // The input is then broadcast to all NPCs from the listener.
+        if (userInput != null && NPCManager.Instance != null)
         {
-            userInput.onSubmit.AddListener((string text) => { Send(); });
-            Debug.Log($"[NPCChatInstance] {npcProfile.npcName} listening to input");
+            if (NPCManager.Instance.npcInstances.Count > 0 && NPCManager.Instance.npcInstances[0] == this)
+            {
+                userInput.onSubmit.RemoveAllListeners(); // Clear any existing listeners
+                userInput.onSubmit.AddListener((string text) => { Send(); });
+                Debug.Log($"[NPCChatInstance] {npcProfile.npcName} registered as primary input listener.");
+            }
         }
     }
 
@@ -146,8 +151,9 @@ public class NPCChatInstance : MonoBehaviour
             return;
 
         // Notify DialogueManager
-        if (DialogueManager.Instance != null)
-            DialogueManager.Instance.OnUserAnswered(userText);
+        // This is now handled by the central ProcessUserAnswer method
+        // if (DialogueManager.Instance != null)
+        //     DialogueManager.Instance.OnUserAnswered(userText);
 
         // Broadcast user answer to ALL interviewers
         var manager = NPCManager.Instance;
@@ -206,7 +212,11 @@ public class NPCChatInstance : MonoBehaviour
         // Check if we should force a response (second NPC if first passed)
         if (DialogueManager.Instance != null)
         {
-            shouldRespond = DialogueManager.Instance.RecordDecision(npcProfile.npcName, shouldRespond);
+            // During the main phase, use the decision logic. In other phases, this might be different.
+            if (DialogueManager.Instance.currentPhase == DialogueManager.InterviewPhase.Main)
+            {
+                shouldRespond = DialogueManager.Instance.RecordDecision(npcProfile.npcName, shouldRespond);
+            }
         }
         
         if (shouldRespond)
@@ -214,23 +224,69 @@ public class NPCChatInstance : MonoBehaviour
             // Request turn and generate actual response
             if (DialogueManager.Instance != null && DialogueManager.Instance.RequestTurn(npcProfile.npcName))
             {
-                await ExecuteSpeech($"Ask a relevant follow-up question to: {userAnswer}");
+                string instruction = (DialogueManager.Instance.currentPhase == DialogueManager.InterviewPhase.Conclusion)
+                    ? "It's time to conclude the interview. Ask a final question or give some closing remarks."
+                    : $"Ask a relevant follow-up question to: {userAnswer}";
+
+                await ExecuteSpeech(instruction);
             }
         }
     }
     
     /// <summary>
+    /// Forces this NPC to introduce themselves, bypassing normal turn-taking logic.
+    /// This is called by the DialogueManager to start the interview.
+    /// </summary>
+    public async void InitiateIntroduction()
+    {
+        if (DialogueManager.Instance != null && DialogueManager.Instance.RequestTurn(npcProfile.npcName))
+        {
+            Debug.Log($"[NPCChatInstance] {npcProfile.npcName} is initiating the introduction.");
+            await ExecuteSpeech("Introduce yourself and welcome the candidate to the interview.");
+        }
+    }
+
+    /// <summary>
     /// Build prompt for LLM to decide whether to respond
     /// </summary>
     private string BuildTurnDecisionPrompt(string userAnswer)
     {
-        var promptBuilder = new StringBuilder()
-            .Append("You are ")
-            .Append(npcProfile.npcName)
-            .Append(". ")
-            .Append(npcProfile.systemPrompt)
-            .Append("\n\nCandidate said: \"").Append(userAnswer).Append("\"\n")
-            .Append("Do you have a relevant follow-up? YES or NO only.");
+        var promptBuilder = new StringBuilder();
+        var dialogueManager = DialogueManager.Instance;
+
+        if (dialogueManager == null)
+        {
+            // Fallback if DialogueManager is not available
+            promptBuilder.Append("You are ").Append(npcProfile.npcName).Append(". ")
+                .Append(npcProfile.systemPrompt)
+                .Append("\n\nCandidate said: \"").Append(userAnswer).Append("\"\n")
+                .Append("Do you have a relevant follow-up? YES or NO only.");
+            return promptBuilder.ToString();
+        }
+
+        // The prompt changes based on the interview phase
+        switch (dialogueManager.currentPhase)
+        {
+            case DialogueManager.InterviewPhase.Introduction:
+                promptBuilder.Append("You are ").Append(npcProfile.npcName).Append(". ")
+                    .Append("The interview is just starting. The first speaker has just introduced themselves. ")
+                    .Append("Is it your turn to introduce yourself now? Respond YES or NO.");
+                break;
+
+            case DialogueManager.InterviewPhase.Conclusion:
+                promptBuilder.Append("You are ").Append(npcProfile.npcName).Append(". ")
+                    .Append("The interview has reached its conclusion phase. ")
+                    .Append("Should you be the one to deliver the closing remarks or ask a final question? Respond YES or NO.");
+                break;
+
+            case DialogueManager.InterviewPhase.Main:
+            default:
+                promptBuilder.Append("You are ").Append(npcProfile.npcName).Append(". ")
+                    .Append(npcProfile.systemPrompt)
+                    .Append("\n\nCandidate said: \"").Append(userAnswer).Append("\"\n")
+                    .Append("Do you have a relevant follow-up? YES or NO only.");
+                break;
+        }
 
         return promptBuilder.ToString();
     }

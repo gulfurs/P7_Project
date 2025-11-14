@@ -31,6 +31,24 @@ public class OllamaChatClient : MonoBehaviour
         public string content; 
     }
 
+    [Serializable]
+    private class OllamaRequestOptions
+    {
+        public float temperature;
+        public float repeat_penalty;
+        public float top_p;
+        public int num_ctx;
+    }
+
+    [Serializable]
+    private class OllamaRequest
+    {
+        public string model;
+        public List<ChatMessage> messages;
+        public bool stream;
+        public OllamaRequestOptions options;
+    }
+
     public async Task<ChatResponse> SendChatAsync(List<ChatMessage> messages, float temperature, float repeatPenalty, 
         Action<string> onStreamUpdate = null, Action<string> onTokenReceived = null, CancellationToken cancellationToken = default)
     {
@@ -38,9 +56,8 @@ public class OllamaChatClient : MonoBehaviour
         {
             // Read from LLMConfig every time (single source of truth)
             string endpoint = LLMConfig.Instance.ollamaEndpoint;
-            string model = LLMConfig.Instance.ollamaModel;
             
-            string json = BuildRequestJson(model, messages, temperature, repeatPenalty);
+            string json = BuildRequestJson(messages, temperature, repeatPenalty);
             var httpRequest = new HttpRequestMessage(HttpMethod.Post, endpoint)
             {
                 Content = new StringContent(json, Encoding.UTF8, "application/json")
@@ -93,34 +110,23 @@ public class OllamaChatClient : MonoBehaviour
         public string error;
     }
 
-    private string BuildRequestJson(string model, List<ChatMessage> messages, float temperature, float repeatPenalty)
+    private string BuildRequestJson(List<ChatMessage> messages, float temperature, float repeatPenalty)
     {
-        var sb = new StringBuilder();
-        sb.Append("{\"model\":").Append(Quote(model))
-          .Append(",\"stream\":true")
-          .Append(",\"options\":{")
-          .Append("\"temperature\":").Append(temperature.ToString("F1", System.Globalization.CultureInfo.InvariantCulture))
-          .Append(",\"repeat_penalty\":").Append(repeatPenalty.ToString("F1", System.Globalization.CultureInfo.InvariantCulture))
-          .Append(",\"top_p\":").Append(LLMConfig.Instance.topP.ToString("F1", System.Globalization.CultureInfo.InvariantCulture))
-          .Append(",\"max_tokens\":").Append(LLMConfig.Instance.defaultMaxTokens)
-          .Append(",\"num_ctx\":4096")
-          .Append("}")
-          .Append(",\"messages\":[");
-        
-        for (int i = 0; i < messages.Count; i++)
+        var requestData = new OllamaRequest
         {
-            var m = messages[i];
-            sb.Append("{\"role\":").Append(Quote(m.role)).Append(",\"content\":").Append(Quote(m.content)).Append("}");
-            if (i < messages.Count - 1) sb.Append(",");
-        }
-        sb.Append("]}");
-        return sb.ToString();
-    }
-
-    private static string Quote(string s)
-    {
-        if (s == null) return "\"\"";
-        return "\"" + s.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r") + "\"";
+            model = LLMConfig.Instance.ollamaModel,
+            messages = messages,
+            stream = true,
+            options = new OllamaRequestOptions
+            {
+                temperature = temperature,
+                repeat_penalty = repeatPenalty,
+                top_p = LLMConfig.Instance.topP,
+                num_ctx = 4096 // A reasonable default context window
+            }
+        };
+        
+        return JsonUtility.ToJson(requestData);
     }
 
     private static string ExtractContent(string ndjsonLine)

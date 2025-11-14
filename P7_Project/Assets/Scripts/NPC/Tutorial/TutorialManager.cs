@@ -122,7 +122,7 @@ public class TutorialManager : MonoBehaviour
         string systemPrompt = npcProfile.systemPrompt;
         if (string.IsNullOrEmpty(systemPrompt))
         {
-            systemPrompt = "You are a helpful tutorial guide.";
+            systemPrompt = "You are a friendly and helpful AI assistant. Your role is to welcome the user to this job interview simulation and give them a brief, warm introduction. Keep your response to one or two short sentences.";
         }
 
         var messages = new List<OllamaChatClient.ChatMessage>
@@ -307,6 +307,12 @@ public class TutorialManager : MonoBehaviour
         if (interactManager != null)
             interactManager.UnlockInteract(false);
         
-        Debug.Log("📢 Ready for interview");
+        Debug.Log("📢 Ready for interview. Kicking off introductions...");
+        
+        // Kick off the interview introductions
+        if (DialogueManager.Instance != null)
+        {
+            DialogueManager.Instance.StartInterview();
+        }
     }
 }

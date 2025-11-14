@@ -162,7 +162,7 @@ public class NPCAnimatorConfig
             return false;
         }
         
-        animator.Play(triggerName, 2);
+        animator.SetTrigger(triggerName);
         Debug.Log($"✓ Triggered animation: {triggerName}");
         return true;
     }

@@ -2,7 +2,7 @@ using System;
 using System.Runtime.InteropServices;
 using UnityEngine;
 
-public static class WWhisperManager
+public static class WhisperManager
 {
     private const string DLL_NAME = "whisper_unity";
 
