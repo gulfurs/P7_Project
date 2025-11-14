@@ -173,29 +173,38 @@ public class OllamaChatClient : MonoBehaviour
     private async Task<ChatResponse> SendLocalChatAsync(List<ChatMessage> messages,
         Action<string> onStreamUpdate = null, Action<string> onTokenReceived = null, CancellationToken cancellationToken = default)
     {
+        // Get the controller on the main thread before the background task
+        var controller = LLMConfig.Instance.GetLlamaController();
+        if (controller == null)
+        {
+            return new ChatResponse
+            {
+                content = "",
+                isComplete = true,
+                error = "LlamaController not found for local mode"
+            };
+        }
+
+        // Run on thread pool to avoid blocking Unity main thread during generation
         return await Task.Run(() =>
         {
             try
             {
-                var controller = LLMConfig.Instance.GetLlamaController();
-                if (controller == null)
-                {
-                    return new ChatResponse
-                    {
-                        content = "",
-                        isComplete = true,
-                        error = "LlamaController not found for local mode"
-                    };
-                }
-
                 // Use the new stateless GenerateReply that accepts messages
                 string response = controller.GenerateReply(messages);
 
-                // Simulate callbacks (local generation is blocking, not streaming)
+                // Marshal callbacks to main thread using UnityMainThreadDispatcher
                 if (!string.IsNullOrEmpty(response))
                 {
-                    onStreamUpdate?.Invoke(response);
-                    onTokenReceived?.Invoke(response);
+                    string capturedResponse = response;
+                    if (onStreamUpdate != null || onTokenReceived != null)
+                    {
+                        UnityMainThreadDispatcher.Enqueue(() =>
+                        {
+                            onStreamUpdate?.Invoke(capturedResponse);
+                            onTokenReceived?.Invoke(capturedResponse);
+                        });
+                    }
                 }
 
                 return new ChatResponse
