@@ -40,16 +40,8 @@ public class WhisperContinuous : MonoBehaviour
             return;
         }
 
-        // Only start continuous capture if in the correct mode
-        if (mode == RecordingMode.Continuous)
-        {
-            Debug.Log("[Whisper] Starting continuous recognition on: " + micDevice);
-            StartCoroutine(CaptureMicrophone());
-        }
-        else
-        {
-            Debug.Log("[Whisper] Push-to-talk mode enabled. Waiting for input.");
-        }
+        Debug.Log("[Whisper] Starting continuous recognition on: " + micDevice);
+        StartCoroutine(CaptureMicrophone());
     }
 
     private IEnumerator CaptureMicrophone()
