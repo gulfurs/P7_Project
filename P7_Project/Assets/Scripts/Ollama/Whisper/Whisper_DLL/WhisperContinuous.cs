@@ -1,17 +1,11 @@
 using UnityEngine;
 using System.Collections;
+using System.Text.RegularExpressions;
 using TMPro;
-
-public enum RecordingMode
-{
-    Continuous,
-    PushToTalk
-}
 
 public class WhisperContinuous : MonoBehaviour
 {
     [Header("Whisper Settings")]
-    public RecordingMode mode = RecordingMode.Continuous;
     public string modelFileName = "ggml-tiny.bin";
     public float chunkDuration = 3f; 
     public AudioSource audioSource;
@@ -19,10 +13,17 @@ public class WhisperContinuous : MonoBehaviour
     [Header("Input Field")]
     public TMP_InputField inputField;
 
+    [Header("Sentence Accumulation Settings")]
+    [Tooltip("Time in seconds of silence before considering sentence complete")]
+    public float silenceThreshold = 2.0f;
+
     private string modelPath;
     private string micDevice;
-    private AudioClip pushToTalkClip;
-    private bool isRecordingForPushToTalk = false;
+
+    // Sentence accumulation for continuous mode
+    private string accumulatedSentence = "";
+    private float lastSpeechTime = 0f;
+    private bool isSpeaking = false;
 
     void Start()
     {
@@ -49,16 +50,8 @@ public class WhisperContinuous : MonoBehaviour
             return;
         }
 
-        // Only start continuous capture if in the correct mode
-        if (mode == RecordingMode.Continuous)
-        {
-            Debug.Log("[Whisper] Starting continuous recognition on: " + micDevice);
-            StartCoroutine(CaptureMicrophone());
-        }
-        else
-        {
-            Debug.Log("[Whisper] Push-to-talk mode enabled. Waiting for input.");
-        }
+        Debug.Log("[Whisper] Starting continuous recognition on: " + micDevice);
+        StartCoroutine(CaptureMicrophone());
     }
 
     private IEnumerator CaptureMicrophone()
@@ -75,89 +68,79 @@ public class WhisperContinuous : MonoBehaviour
             // Run Whisper on this chunk
             string result = WhisperManager.Transcribe(path);
 
-            if (!string.IsNullOrWhiteSpace(result) && result != "[BLANK_AUDIO]")
-            {
-                UnityMainThreadDispatcher.Enqueue(() =>
-                {
-                    Debug.Log($"[Whisper] Transcribed: {result}");
+            // Clean the transcription
+            string cleanedResult = CleanTranscription(result);
 
-                    if (inputField != null)
-                        inputField.text = result;
-                        // In continuous mode, we might want to auto-submit or just display
-                });
+            if (!string.IsNullOrWhiteSpace(cleanedResult))
+            {
+                // User is speaking, accumulate the text
+                isSpeaking = true;
+                lastSpeechTime = Time.time;
+                
+                // Add to accumulated sentence with space
+                if (!string.IsNullOrEmpty(accumulatedSentence))
+                {
+                    accumulatedSentence += " " + cleanedResult;
+                }
+                else
+                {
+                    accumulatedSentence = cleanedResult;
+                }
+
+                Debug.Log($"[Whisper] Accumulating: {cleanedResult} | Full: {accumulatedSentence}");
+            }
+            else
+            {
+                // Check if we should finalize the accumulated sentence
+                if (isSpeaking && !string.IsNullOrEmpty(accumulatedSentence))
+                {
+                    float silenceDuration = Time.time - lastSpeechTime;
+                    
+                    if (silenceDuration >= silenceThreshold)
+                    {
+                        // Sentence complete - finalize it
+                        string finalSentence = accumulatedSentence.Trim();
+                        accumulatedSentence = "";
+                        isSpeaking = false;
+
+                        UnityMainThreadDispatcher.Enqueue(() =>
+                        {
+                            Debug.Log($"[Whisper] Finalized sentence: {finalSentence}");
+
+                            if (inputField != null)
+                                inputField.text = finalSentence;
+
+                            // Auto-submit to NPC
+                            NotifyNPCs(finalSentence);
+                        });
+                    }
+                }
             }
         }
     }
 
     /// <summary>
-    /// Starts recording audio for push-to-talk.
+    /// Cleans transcription by removing unwanted markers and normalizing text.
     /// </summary>
-    public void StartPushToTalkRecording()
+    private string CleanTranscription(string text)
     {
-        if (mode != RecordingMode.PushToTalk || isRecordingForPushToTalk || micDevice == null)
-        {
-            return;
-        }
+        if (string.IsNullOrWhiteSpace(text))
+            return "";
 
-        isRecordingForPushToTalk = true;
-        // Record for a longer duration, as we'll stop it manually
-        pushToTalkClip = Microphone.Start(micDevice, false, 300, 16000); 
-        Debug.Log("[Whisper] Started push-to-talk recording.");
-    }
+        // Trim whitespace
+        text = text.Trim();
 
-    /// <summary>
-    /// Stops recording audio for push-to-talk and transcribes the result.
-    /// </summary>
-    public void StopPushToTalkRecordingAndTranscribe()
-    {
-        if (mode != RecordingMode.PushToTalk || !isRecordingForPushToTalk)
-        {
-            return;
-        }
+        // Remove anything inside brackets [] or parentheses ()
+        text = Regex.Replace(text, @"\[.*?\]", "", RegexOptions.IgnoreCase);
+        text = Regex.Replace(text, @"\(.*?\)", "", RegexOptions.IgnoreCase);
 
-        Microphone.End(micDevice);
-        isRecordingForPushToTalk = false;
-        Debug.Log("[Whisper] Stopped push-to-talk recording. Transcribing...");
+        // Remove excessive punctuation (e.g., "..." or single ".")
+        text = Regex.Replace(text, @"^\.+$", "");
 
-        string path = Application.persistentDataPath + "/ptt_clip.wav";
-        SaveWav(path, pushToTalkClip);
+        // Normalize multiple spaces
+        text = Regex.Replace(text, @"\s+", " ");
 
-        // Run Whisper transcription (this is synchronous native call, safe on any thread)
-        string result = WhisperManager.Transcribe(path);
-
-        if (!string.IsNullOrWhiteSpace(result) && result != "[BLANK_AUDIO]")
-        {
-            // Capture result in local variable to ensure thread safety
-            string transcribedText = result;
-            
-            // Queue the UI and NPC updates to run on the main thread
-            UnityMainThreadDispatcher.Enqueue(() =>
-            {
-                Debug.Log($"[Whisper] Transcribed PTT: {transcribedText}");
-
-                // Update UI
-                if (inputField != null)
-                    inputField.text = transcribedText;
-
-                // Notify NPCs
-                if (NPCManager.Instance != null && NPCManager.Instance.npcInstances.Count > 0)
-                {
-                    var firstNPC = NPCManager.Instance.npcInstances[0];
-                    if (firstNPC != null)
-                    {
-                        firstNPC.ProcessUserAnswer(transcribedText);
-                    }
-                }
-                else
-                {
-                    Debug.LogWarning("[Whisper] No NPCs found to process transcription.");
-                }
-            });
-        }
-        else
-        {
-            Debug.Log("[Whisper] PTT transcription was blank.");
-        }
+        return text.Trim();
     }
 
     private void SaveWav(string path, AudioClip clip)
