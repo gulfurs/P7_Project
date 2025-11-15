@@ -1,6 +1,5 @@
 using UnityEngine;
 using System.Collections;
-using System.Text.RegularExpressions;
 using TMPro;
 
 public class WhisperContinuous : MonoBehaviour
@@ -13,17 +12,8 @@ public class WhisperContinuous : MonoBehaviour
     [Header("Input Field")]
     public TMP_InputField inputField;
 
-    [Header("Sentence Accumulation Settings")]
-    [Tooltip("Time in seconds of silence before considering sentence complete")]
-    public float silenceThreshold = 2.0f;
-
     private string modelPath;
     private string micDevice;
-
-    // Sentence accumulation for continuous mode
-    private string accumulatedSentence = "";
-    private float lastSpeechTime = 0f;
-    private bool isSpeaking = false;
 
     void Start()
     {
@@ -50,8 +40,16 @@ public class WhisperContinuous : MonoBehaviour
             return;
         }
 
-        Debug.Log("[Whisper] Starting continuous recognition on: " + micDevice);
-        StartCoroutine(CaptureMicrophone());
+        // Only start continuous capture if in the correct mode
+        if (mode == RecordingMode.Continuous)
+        {
+            Debug.Log("[Whisper] Starting continuous recognition on: " + micDevice);
+            StartCoroutine(CaptureMicrophone());
+        }
+        else
+        {
+            Debug.Log("[Whisper] Push-to-talk mode enabled. Waiting for input.");
+        }
     }
 
     private IEnumerator CaptureMicrophone()
@@ -68,76 +66,18 @@ public class WhisperContinuous : MonoBehaviour
             // Run Whisper on this chunk
             string result = WhisperManager.Transcribe(path);
 
-            // Clean the transcription
-            string cleanedResult = CleanTranscription(result);
-
-            if (!string.IsNullOrWhiteSpace(cleanedResult))
+            if (!string.IsNullOrWhiteSpace(result) && result != "[BLANK_AUDIO]")
             {
-                // User is speaking, accumulate the text
-                isSpeaking = true;
-                lastSpeechTime = Time.time;
-                
-                // Add to accumulated sentence with space
-                if (!string.IsNullOrEmpty(accumulatedSentence))
+                UnityMainThreadDispatcher.Enqueue(() =>
                 {
-                    accumulatedSentence += " " + cleanedResult;
-                }
-                else
-                {
-                    accumulatedSentence = cleanedResult;
-                }
+                    Debug.Log($"[Whisper] Transcribed: {result}");
 
-                Debug.Log($"[Whisper] Accumulating: {cleanedResult} | Full: {accumulatedSentence}");
-            }
-            else
-            {
-                // Check if we should finalize the accumulated sentence
-                if (isSpeaking && !string.IsNullOrEmpty(accumulatedSentence))
-                {
-                    float silenceDuration = Time.time - lastSpeechTime;
-                    
-                    if (silenceDuration >= silenceThreshold)
-                    {
-                        // Sentence complete - finalize it
-                        string finalSentence = accumulatedSentence.Trim();
-                        accumulatedSentence = "";
-                        isSpeaking = false;
-
-                        UnityMainThreadDispatcher.Enqueue(() =>
-                        {
-                            Debug.Log($"[Whisper] Finalized sentence: {finalSentence}");
-
-                            if (inputField != null)
-                                inputField.text = finalSentence;
-                        });
-                    }
-                }
+                    if (inputField != null)
+                        inputField.text = result;
+                        // In continuous mode, we might want to auto-submit or just display
+                });
             }
         }
-    }
-
-    /// <summary>
-    /// Cleans transcription by removing unwanted markers and normalizing text.
-    /// </summary>
-    private string CleanTranscription(string text)
-    {
-        if (string.IsNullOrWhiteSpace(text))
-            return "";
-
-        // Trim whitespace
-        text = text.Trim();
-
-        // Remove anything inside brackets [] or parentheses ()
-        text = Regex.Replace(text, @"\[.*?\]", "", RegexOptions.IgnoreCase);
-        text = Regex.Replace(text, @"\(.*?\)", "", RegexOptions.IgnoreCase);
-
-        // Remove excessive punctuation (e.g., "..." or single ".")
-        text = Regex.Replace(text, @"^\.+$", "");
-
-        // Normalize multiple spaces
-        text = Regex.Replace(text, @"\s+", " ");
-
-        return text.Trim();
     }
 
     private void SaveWav(string path, AudioClip clip)
