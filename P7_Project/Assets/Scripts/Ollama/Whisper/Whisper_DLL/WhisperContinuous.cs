@@ -109,9 +109,6 @@ public class WhisperContinuous : MonoBehaviour
 
                             if (inputField != null)
                                 inputField.text = finalSentence;
-
-                            // Auto-submit to NPC
-                            NotifyNPCs(finalSentence);
                         });
                     }
                 }
