@@ -353,7 +353,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f294e787c6f66dd4890cb212ca3c634c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  modelFileName: llama8.gguf
+  modelFileName: llama3.gguf
   systemPrompt: 'System: You are a helpful assistant.'
   assistantPreview: 
 --- !u!1 &926606361

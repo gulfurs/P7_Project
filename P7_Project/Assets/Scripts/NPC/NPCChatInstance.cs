@@ -198,8 +198,8 @@ public class NPCChatInstance : MonoBehaviour
             null,
             null,
             default
-        );
-        
+        ).ConfigureAwait(true);
+
         if (!string.IsNullOrEmpty(response.error))
             return;
         
@@ -341,7 +341,7 @@ public class NPCChatInstance : MonoBehaviour
             null,
             token => ProcessToken(token, ttsBuffer, displayBuffer, ttsActive, shouldStreamDisplay),
             cts.Token
-        );
+        ).ConfigureAwait(true);
 
         if (!string.IsNullOrEmpty(response.error))
         {

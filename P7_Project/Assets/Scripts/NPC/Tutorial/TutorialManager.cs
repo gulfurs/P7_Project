@@ -150,7 +150,7 @@ public class TutorialManager : MonoBehaviour
             null,
             (token) => ProcessToken(token, ttsBuffer, displayBuffer, shouldStreamDisplay),
             cts.Token
-        );
+        ).ConfigureAwait(true);
 
         if (!string.IsNullOrEmpty(response.error))
         {
