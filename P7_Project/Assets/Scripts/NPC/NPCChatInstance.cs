@@ -191,14 +191,7 @@ public class NPCChatInstance : MonoBehaviour
         };
         
         // Ask LLM for decision (should be quick, low temp)
-        var response = await ollamaClient.SendChatAsync(
-            messages,
-            temperature: 0.3f, // Low temp for consistent decisions
-            repeatPenalty: 1.0f,
-            null,
-            null,
-            default
-        );
+    var response = await SendMessagesToLLM(messages, 0.3f, 1.0f, cts.Token).ConfigureAwait(true);
         
         if (!string.IsNullOrEmpty(response.error))
             return;
@@ -334,14 +327,26 @@ public class NPCChatInstance : MonoBehaviour
         bool ttsActive = IsTTSEnabled;
         bool shouldStreamDisplay = !ttsActive;
         
-        var response = await ollamaClient.SendChatAsync(
-            messages,
-            npcProfile.GetEffectiveTemperature(),
-            npcProfile.GetEffectiveRepeatPenalty(),
-            null,
-            token => ProcessToken(token, ttsBuffer, displayBuffer, ttsActive, shouldStreamDisplay),
-            cts.Token
-        );
+        // Route to appropriate LLM based on mode
+        OllamaChatClient.ChatResponse response;
+        
+        if (LLMConfig.Instance != null && LLMConfig.Instance.IsLocalMode)
+        {
+            // Local GGUF mode - use LlamaController directly
+            response = await GenerateLocalResponse(messages, ttsBuffer, displayBuffer, ttsActive, shouldStreamDisplay, cts.Token).ConfigureAwait(true);
+        }
+        else
+        {
+            // HTTP Ollama mode - use OllamaChatClient
+            response = await ollamaClient.SendChatAsync(
+                messages,
+                npcProfile.GetEffectiveTemperature(),
+                npcProfile.GetEffectiveRepeatPenalty(),
+                null,
+                token => ProcessToken(token, ttsBuffer, displayBuffer, ttsActive, shouldStreamDisplay),
+                cts.Token
+            ).ConfigureAwait(true);
+        }
 
         if (!string.IsNullOrEmpty(response.error))
         {
@@ -359,6 +364,43 @@ public class NPCChatInstance : MonoBehaviour
         
         LogMemoryState();
         FinishSpeaking();
+    }
+
+    /// <summary>
+    /// Helper to send messages to the configured LLM (routes to local GGUF or HTTP Ollama)
+    /// For short/decision queries where streaming/TTS are not required.
+    /// </summary>
+    private async System.Threading.Tasks.Task<OllamaChatClient.ChatResponse> SendMessagesToLLM(
+        List<OllamaChatClient.ChatMessage> messages,
+        float temperature,
+        float repeatPenalty,
+        CancellationToken cancellationToken)
+    {
+        if (LLMConfig.Instance != null && LLMConfig.Instance.IsLocalMode)
+        {
+            // Use LlamaController directly for local mode
+            var controller = LLMConfig.Instance.GetLlamaController();
+            if (controller == null)
+            {
+                return new OllamaChatClient.ChatResponse { content = "", isComplete = true, error = "LlamaController not found" };
+            }
+
+            return await System.Threading.Tasks.Task.Run(() =>
+            {
+                try
+                {
+                    string res = controller.GenerateReply(messages, null, cancellationToken);
+                    return new OllamaChatClient.ChatResponse { content = res, isComplete = true, error = res.StartsWith("[Error:") ? res : null };
+                }
+                catch (Exception ex)
+                {
+                    return new OllamaChatClient.ChatResponse { content = "", isComplete = true, error = ex.Message };
+                }
+            }, cancellationToken);
+        }
+
+        // Default: use HTTP client
+        return await ollamaClient.SendChatAsync(messages, temperature, repeatPenalty, null, null, cancellationToken);
     }
 
     /// <summary>
@@ -585,6 +627,67 @@ public class NPCChatInstance : MonoBehaviour
     public void ShowMemory()
     {
         LogMemoryState();
+    }
+
+    /// <summary>
+    /// Generate response using local GGUF model (LlamaController)
+    /// </summary>
+    private async System.Threading.Tasks.Task<OllamaChatClient.ChatResponse> GenerateLocalResponse(
+        List<OllamaChatClient.ChatMessage> messages,
+        StringBuilder ttsBuffer,
+        StringBuilder displayBuffer,
+        bool ttsActive,
+        bool shouldStreamDisplay,
+        CancellationToken cancellationToken)
+    {
+        var controller = LLMConfig.Instance.GetLlamaController();
+        if (controller == null)
+        {
+            return new OllamaChatClient.ChatResponse
+            {
+                content = "",
+                isComplete = true,
+                error = "LlamaController not found for local mode"
+            };
+        }
+
+        return await System.Threading.Tasks.Task.Run(() =>
+        {
+            try
+            {
+                // controller captured from main thread
+
+                // Generate with token streaming
+                string response = controller.GenerateReply(messages, token =>
+                {
+                    // Respect cancellation in the callback and marshal processing to main thread
+                    if (cancellationToken.IsCancellationRequested)
+                        return;
+
+                    string capturedToken = token;
+                    UnityMainThreadDispatcher.Enqueue(() =>
+                    {
+                        ProcessToken(capturedToken, ttsBuffer, displayBuffer, ttsActive, shouldStreamDisplay);
+                    });
+                }, cancellationToken);
+
+                return new OllamaChatClient.ChatResponse
+                {
+                    content = response,
+                    isComplete = true,
+                    error = response.StartsWith("[Error:") ? response : null
+                };
+            }
+            catch (Exception ex)
+            {
+                return new OllamaChatClient.ChatResponse
+                {
+                    content = "",
+                    isComplete = true,
+                    error = ex.Message
+                };
+            }
+        }, cancellationToken);
     }
 
     private void ResetMetadataParsing()

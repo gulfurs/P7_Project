@@ -52,13 +52,8 @@ public class OllamaChatClient : MonoBehaviour
     public async Task<ChatResponse> SendChatAsync(List<ChatMessage> messages, float temperature, float repeatPenalty, 
         Action<string> onStreamUpdate = null, Action<string> onTokenReceived = null, CancellationToken cancellationToken = default)
     {
-        // Check if using local GGUF model
-        if (LLMConfig.Instance.IsLocalMode)
-        {
-            return await SendLocalChatAsync(messages, onStreamUpdate, onTokenReceived, cancellationToken);
-        }
-        
-        // Otherwise use Ollama HTTP
+        // OllamaChatClient now only handles HTTP Ollama mode
+        // Local GGUF mode is handled directly by NPCChatInstance → LlamaController
         try
         {
             // Read from LLMConfig every time (single source of truth)
@@ -70,10 +65,10 @@ public class OllamaChatClient : MonoBehaviour
                 Content = new StringContent(json, Encoding.UTF8, "application/json")
             };
 
-            using var response = await http.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            using var response = await http.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(true);
             response.EnsureSuccessStatusCode();
 
-            using var stream = await response.Content.ReadAsStreamAsync();
+            using var stream = await response.Content.ReadAsStreamAsync().ConfigureAwait(true);
             using var reader = new System.IO.StreamReader(stream, Encoding.UTF8);
 
             var fullResponse = new StringBuilder();
@@ -87,8 +82,13 @@ public class OllamaChatClient : MonoBehaviour
                 if (!string.IsNullOrEmpty(delta))
                 {
                     fullResponse.Append(delta);
-                    onStreamUpdate?.Invoke(fullResponse.ToString());
-                    onTokenReceived?.Invoke(delta); // Send individual token/chunk immediately
+                    string capturedFull = fullResponse.ToString();
+                    string capturedDelta = delta;
+                    UnityMainThreadDispatcher.Enqueue(() =>
+                    {
+                        onStreamUpdate?.Invoke(capturedFull);
+                        onTokenReceived?.Invoke(capturedDelta); // Send individual token/chunk immediately
+                    });
                 }
             }
 
@@ -165,64 +165,5 @@ public class OllamaChatClient : MonoBehaviour
             else sb.Append(c);
         }
         return sb.ToString();
-    }
-
-    /// <summary>
-    /// Send chat using local GGUF model via LlamaController
-    /// </summary>
-    private async Task<ChatResponse> SendLocalChatAsync(List<ChatMessage> messages,
-        Action<string> onStreamUpdate = null, Action<string> onTokenReceived = null, CancellationToken cancellationToken = default)
-    {
-        // Get the controller on the main thread before the background task
-        var controller = LLMConfig.Instance.GetLlamaController();
-        if (controller == null)
-        {
-            return new ChatResponse
-            {
-                content = "",
-                isComplete = true,
-                error = "LlamaController not found for local mode"
-            };
-        }
-
-        // Run on thread pool to avoid blocking Unity main thread during generation
-        return await Task.Run(() =>
-        {
-            try
-            {
-                // Use the new stateless GenerateReply that accepts messages
-                string response = controller.GenerateReply(messages);
-
-                // Marshal callbacks to main thread using UnityMainThreadDispatcher
-                if (!string.IsNullOrEmpty(response))
-                {
-                    string capturedResponse = response;
-                    if (onStreamUpdate != null || onTokenReceived != null)
-                    {
-                        UnityMainThreadDispatcher.Enqueue(() =>
-                        {
-                            onStreamUpdate?.Invoke(capturedResponse);
-                            onTokenReceived?.Invoke(capturedResponse);
-                        });
-                    }
-                }
-
-                return new ChatResponse
-                {
-                    content = response,
-                    isComplete = true,
-                    error = response.StartsWith("[Error:") ? response : null
-                };
-            }
-            catch (Exception ex)
-            {
-                return new ChatResponse
-                {
-                    content = "",
-                    isComplete = true,
-                    error = ex.Message
-                };
-            }
-        }, cancellationToken);
     }
 }
