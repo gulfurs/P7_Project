@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Runtime.InteropServices;
+using System.Threading;
 using UnityEngine;
 
 public static class LlamaBridge
@@ -65,8 +66,9 @@ public class LlamaController : MonoBehaviour
 
     /// <summary>
     /// Generate reply from a list of chat messages (stateless - no internal memory)
+    /// Now supports streaming tokens as they're generated
     /// </summary>
-    public string GenerateReply(List<OllamaChatClient.ChatMessage> messages)
+    public string GenerateReply(List<OllamaChatClient.ChatMessage> messages, Action<string> onTokenReceived = null, CancellationToken cancellationToken = default)
     {
         if (!initialized)
         {
@@ -126,6 +128,11 @@ public class LlamaController : MonoBehaviour
 
         while (true)
         {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                Debug.Log("[LLaMA] Generation cancelled.");
+                break;
+            }
             IntPtr ptr = LlamaBridge.llama_generate_stream_next();
             if (ptr == IntPtr.Zero) break;
 
@@ -133,14 +140,21 @@ public class LlamaController : MonoBehaviour
             if (string.IsNullOrEmpty(token)) break;
 
             response.Append(token);
+            
+            // Stream token to callback if provided (for real-time processing)
+            onTokenReceived?.Invoke(token);
         }
 
         string result = response.ToString().Trim();
         if (string.IsNullOrEmpty(result))
             result = "[Error: decode failed]";
 
-        assistantPreview = result;
-        Debug.Log($"[LLaMA] Assistant: {result}");
+        // Update preview and log on main thread
+        UnityMainThreadDispatcher.Enqueue(() =>
+        {
+            assistantPreview = result;
+            Debug.Log($"[LLaMA] Assistant: {result}");
+        });
         
         return result;
     }
