@@ -39,15 +39,77 @@ public class TutorialManager : MonoBehaviour
     {
         InitializeComponents();
         
-        // Show initial instruction (index 0)
-        if (instructionText && instructionMessages.Count > 0)
-            instructionText.text = instructionMessages[0];
+        // Show tutorial welcome message
+        if (outputText)
+        {
+            outputText.text = @"Welcome to Job Gauntlet!
+
+
+In this simulation, you will talk to 2 virtual job interviewers. 
+See them as real job interviewers and this as a real interview. 
+So talk as you naturally would.
+
+
+Here are the steps to get started:
+
+Step 1: When you are ready to talk, just start speaking into the microphone.
+
+Step 2: The system will naturally catch your voice, and your answer will be picked up by the job interviewers.
+
+Step 3: When you are ready, type in the field below to start the experience.";
+        }
         
-        // Hook into input submit
+        // Warm up system with silent call
+        WarmUpSystem();
+        
+        // Hook into input submit for continue
         if (userInput != null)
         {
-            userInput.onSubmit.AddListener((string text) => { Send(); });
+            userInput.onSubmit.AddListener((string text) => { ContinueToInterview(); });
         }
+    }
+    
+    private async void ContinueToInterview()
+    {
+        // Hide tutorial UI and start interview
+        if (objectToHideOnComplete != null)
+            objectToHideOnComplete.SetActive(false);
+        
+        await System.Threading.Tasks.Task.Delay(500);
+        TransitionToInterview();
+    }
+    
+    private async void WarmUpSystem()
+    {
+        // Silent warmup call to initialize LLM
+        if (ollamaClient == null || npcProfile == null) return;
+        
+        string systemPrompt = npcProfile.systemPrompt;
+        if (string.IsNullOrEmpty(systemPrompt))
+        {
+            systemPrompt = "You are a friendly and helpful AI assistant.";
+        }
+
+        var messages = new List<OllamaChatClient.ChatMessage>
+        {
+            new OllamaChatClient.ChatMessage { role = "system", content = systemPrompt },
+            new OllamaChatClient.ChatMessage { role = "user", content = "Hi" }
+        };
+
+        cts?.Cancel();
+        cts = new CancellationTokenSource();
+        
+        // Silent call - no UI updates
+        await ollamaClient.SendChatAsync(
+            messages,
+            0f,
+            1.1f,
+            null,
+            (token) => { }, // Ignore output
+            cts.Token
+        ).ConfigureAwait(true);
+        
+        Debug.Log("[Tutorial] System warmed up - ready for interview");
     }
 
     private void InitializeComponents()
