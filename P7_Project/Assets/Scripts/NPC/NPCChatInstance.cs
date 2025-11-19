@@ -54,7 +54,7 @@ public class NPCChatInstance : MonoBehaviour
     void Update()
     {
         if (npcProfile?.animatorConfig != null)
-            npcProfile.animatorConfig.TickGaze(Time.deltaTime);
+            npcProfile.animatorConfig.TickGaze();
     }
 
     void OnDestroy()

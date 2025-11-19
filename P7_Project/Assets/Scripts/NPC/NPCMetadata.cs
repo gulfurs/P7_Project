@@ -1,6 +1,10 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+// Optional: rigging constraint API. If your project doesn't include the
+// Unity Rigging package this will cause a compile error; if so, remove the
+// Rigging references or add the package via Package Manager.
+using UnityEngine.Animations.Rigging;
 
 /// <summary>
 /// Attention state for NPC focus and engagement
@@ -119,6 +123,14 @@ public class NPCAnimatorConfig
     // Gaze smoothing/rotation should be handled by Unity's Multi-Aim constraints.
     // Do not perform per-frame lerp/rotation in code — we only provide the target transform.
     
+    [Header("Rigging (optional)")]
+    [Tooltip("Optional Multi-Aim constraint that controls head/eyes. If assigned, TickGaze will adjust its source weights.")]
+    public MultiAimConstraint multiAimConstraint;
+    
+    [Header("Runtime State")]
+    [Tooltip("Set by external systems (TTS/audio) to indicate this NPC is speaking.")]
+    public bool isSpeaking = false;
+    
     [Header("Available Animator Triggers")]
     [Tooltip("List of all valid animator trigger names that the LLM can use")]
     public List<string> availableTriggers = new List<string>
@@ -143,6 +155,16 @@ public class NPCAnimatorConfig
     
     // Expose current look target for Multi-Aim constraints or other systems
     public Transform CurrentLookTargetTransform => currentLookTarget;
+
+    /// <summary>
+    /// External callers (TTS/audio system) can set this to indicate the NPC
+    /// is currently speaking. TickGaze will prefer the primary target while
+    /// speaking.
+    /// </summary>
+    public void SetSpeaking(bool speaking)
+    {
+        isSpeaking = speaking;
+    }
     
     /// <summary>
     /// Execute an animator trigger if it's in the available list
@@ -236,12 +258,58 @@ public class NPCAnimatorConfig
         UpdateLookTarget(immediate);
     }
 
-    public void TickGaze(float deltaTime)
+    public void TickGaze()
     {
-        // Intentionally left blank: rotation/smoothing should be handled by Multi-Aim
-        // constraints in the Animator rig. This method is kept to preserve the
-        // existing API; callers may still call TickGaze but it will not change
-        // the transform directly.
+        // Keep API compatibility — we don't drive transforms directly here.
+        // If a Multi-Aim Constraint is assigned, update its source weights.
+        if (multiAimConstraint == null)
+            return;
+
+        // Primary source (index 0) should be the look target (currentLookTarget).
+        // Secondary source (index 1) is expected to be the other actor's head/root.
+        // Compute simple weights based on speaking state and attention state.
+        float primaryWeight = 0f;
+        float secondaryWeight = 0f;
+
+        if (isSpeaking)
+        {
+            // If this NPC is speaking, favor the primary target fully.
+            primaryWeight = 1f;
+            secondaryWeight = 0f;
+        }
+        else
+        {
+            switch (currentAttentionState)
+            {
+                case AttentionState.Focused:
+                    primaryWeight = 1f; // look at speaker/target
+                    secondaryWeight = 0f;
+                    break;
+                case AttentionState.Ignoring:
+                    primaryWeight = 0f;
+                    secondaryWeight = 1f; // look away / head toward notes
+                    break;
+                default:
+                    primaryWeight = 0.6f; // slight preference to target
+                    secondaryWeight = 0f;
+                    break;
+            }
+        }
+
+        var sources = multiAimConstraint.data.sourceObjects;
+        if (sources.Count > 0)
+        {
+            // Set first source weight (target)
+            sources.SetWeight(0, Mathf.Clamp01(primaryWeight));
+        }
+        if (sources.Count > 1)
+        {
+            // Set second source weight (other actor head/root)
+            sources.SetWeight(1, Mathf.Clamp01(secondaryWeight));
+        }
+
+        // Reassign back in case the constraint needs the updated array.
+        multiAimConstraint.data.sourceObjects = sources;
     }
 
     private void UpdateLookTarget(bool immediate)
