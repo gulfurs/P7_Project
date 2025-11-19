@@ -225,7 +225,7 @@ public class NPCChatInstance : MonoBehaviour
             {
                 string instruction = (DialogueManager.Instance.currentPhase == DialogueManager.InterviewPhase.Conclusion)
                     ? "It's time to conclude the interview. Ask a final question or give some closing remarks."
-                    : $"Ask a relevant follow-up question to: {userAnswer}";
+                    : $"The candidate said: \"{userAnswer}\". Respond naturally. If they asked you a question, answer it. If they gave an answer, comment on it and ask a relevant follow-up question.";
 
                 await ExecuteSpeech(instruction);
             }
@@ -283,7 +283,12 @@ public class NPCChatInstance : MonoBehaviour
                 promptBuilder.Append("You are ").Append(npcProfile.npcName).Append(". ")
                     .Append(npcProfile.systemPrompt)
                     .Append("\n\nCandidate said: \"").Append(userAnswer).Append("\"\n")
-                    .Append("Do you have a relevant follow-up? YES or NO only.");
+                    .Append("INSTRUCTIONS:\n")
+                    .Append("1. If the candidate mentions your name (").Append(npcProfile.npcName).Append(") or asks you a question, you MUST respond 'YES'.\n")
+                    .Append("2. If the candidate is clearly talking to someone else, respond 'NO'.\n")
+                    .Append("3. If the candidate is answering a general question, and you have a relevant follow-up based on your expertise, respond 'YES'.\n")
+                    .Append("4. Be proactive but polite.\n")
+                    .Append("Response (YES or NO only):");
                 break;
         }
 
