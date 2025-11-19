@@ -151,9 +151,8 @@ public class NPCChatInstance : MonoBehaviour
             return;
 
         // Notify DialogueManager
-        // This is now handled by the central ProcessUserAnswer method
-        // if (DialogueManager.Instance != null)
-        //     DialogueManager.Instance.OnUserAnswered(userText);
+        if (DialogueManager.Instance != null)
+            DialogueManager.Instance.OnUserAnswered(userText);
 
         // Broadcast user answer to ALL interviewers
         var manager = NPCManager.Instance;

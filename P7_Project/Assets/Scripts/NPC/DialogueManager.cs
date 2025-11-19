@@ -118,8 +118,24 @@ public class DialogueManager : MonoBehaviour
     
     public void OnUserAnswered(string answer)
     {
+        if (currentPhase == InterviewPhase.Conclusion)
+        {
+            EndInterview();
+            return;
+        }
+
         NPCManager.Instance?.NotifySpeakerChanged("User");
         decisionsThisRound.Clear();  // Reset for new round
+    }
+
+    private void EndInterview()
+    {
+        Debug.Log("🎬 Interview Finished! Ending game loop.");
+        #if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+        #else
+            Application.Quit();
+        #endif
     }
     
     /// <summary>
