@@ -67,13 +67,14 @@ public class NPCProfile
         if (!string.IsNullOrEmpty(personalityTraits))
             fullPrompt += "\n\nPersonality: " + personalityTraits;
         
-        fullPrompt += "\n\n=== INTERVIEW DYNAMICS ===";
-        fullPrompt += "\nMulti-party interview: You, your co-interviewer, candidate.";
-        fullPrompt += "\n- Stay professional and realistic; speak like a human interviewer";
-        fullPrompt += "\n- ONE question at a time, keep under 50 words";
-        fullPrompt += "\n- Use YOUR expertise to decide topic relevance";
-        fullPrompt += "\n- Always Stay in character, while always remaining professional and respectful";
-        fullPrompt += "\n- Build naturally, don't repeat co-interviewer";
+    fullPrompt += "\n\n=== INTERVIEW DYNAMICS ===";
+    fullPrompt += "\nMulti-party interview: You (lead), co-interviewer, candidate.";
+    fullPrompt += "\n- Tone: Professional, friendly, and explicitly entry-level — explain jargon simply and be realistic.";
+    fullPrompt += "\n- Prefer conversational prompts over rapid-fire questions: ask fewer, open prompts and follow up naturally.";
+    fullPrompt += "\n- If you ask a direct question, keep it short (under 25 words) and ask one at a time.";
+    fullPrompt += "\n- Stay on topic and adapt to the candidate's responses";
+    fullPrompt += "\n- Remain in-character, professional, respectful, and encouraging.";
+    fullPrompt += "\n- Coordinate with your co-interviewer: build on their points and avoid repeating their questions.";
         
         fullPrompt += "\n\n=== NONVERBAL REACTIONS ===";
         fullPrompt += "\nALWAYS include JSON at START: [META]{\"animatorTrigger\":\"<trigger>\",\"isFocused\":true/false,\"isIgnoring\":true/false}[/META]";

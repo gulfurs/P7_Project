@@ -116,8 +116,8 @@ public class NPCAnimatorConfig
     public Transform gazeOrigin;
     public Transform neutralLookTarget;
     public Transform ignoreLookTarget;
-    [Range(0.1f, 20f)]
-    public float gazeLerpSpeed = 8f;
+    // Gaze smoothing/rotation should be handled by Unity's Multi-Aim constraints.
+    // Do not perform per-frame lerp/rotation in code — we only provide the target transform.
     
     [Header("Available Animator Triggers")]
     [Tooltip("List of all valid animator trigger names that the LLM can use")]
@@ -140,6 +140,9 @@ public class NPCAnimatorConfig
     private AttentionState currentAttentionState = AttentionState.Idle;
     private Transform currentLookTarget;
     private Transform speakerLookTarget;
+    
+    // Expose current look target for Multi-Aim constraints or other systems
+    public Transform CurrentLookTargetTransform => currentLookTarget;
     
     /// <summary>
     /// Execute an animator trigger if it's in the available list
@@ -235,19 +238,10 @@ public class NPCAnimatorConfig
 
     public void TickGaze(float deltaTime)
     {
-        if (gazeOrigin == null || currentLookTarget == null)
-            return;
-
-        Vector3 toTarget = currentLookTarget.position - gazeOrigin.position;
-        if (toTarget.sqrMagnitude <= 0.0001f)
-            return;
-
-        Quaternion desiredRotation = Quaternion.LookRotation(toTarget.normalized, Vector3.up);
-
-        if (gazeLerpSpeed <= 0f)
-            gazeOrigin.rotation = desiredRotation;
-        else
-            gazeOrigin.rotation = Quaternion.Slerp(gazeOrigin.rotation, desiredRotation, deltaTime * gazeLerpSpeed);
+        // Intentionally left blank: rotation/smoothing should be handled by Multi-Aim
+        // constraints in the Animator rig. This method is kept to preserve the
+        // existing API; callers may still call TickGaze but it will not change
+        // the transform directly.
     }
 
     private void UpdateLookTarget(bool immediate)
@@ -267,21 +261,17 @@ public class NPCAnimatorConfig
                 break;
         }
 
-        if (desiredTarget == null)
-        {
-            currentLookTarget = null;
-            return;
-        }
-
+        // Assign the transform target. The actual aiming/rotation is expected
+        // to be handled by Multi-Aim constraints that reference this transform.
         currentLookTarget = desiredTarget;
 
-        if (immediate && gazeOrigin != null)
+        // If immediate is requested, optionally snap gazeOrigin to face the
+        // target once. This is a simple instantaneous LookAt (no smoothing).
+        // Multi-Aim constraints usually handle pose changes, so this is
+        // optional and kept minimal.
+        if (immediate && gazeOrigin != null && currentLookTarget != null)
         {
-            Vector3 toTarget = currentLookTarget.position - gazeOrigin.position;
-            if (toTarget.sqrMagnitude > 0.0001f)
-            {
-                gazeOrigin.rotation = Quaternion.LookRotation(toTarget.normalized, Vector3.up);
-            }
+            gazeOrigin.LookAt(currentLookTarget.position, Vector3.up);
         }
     }
     
