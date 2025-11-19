@@ -164,6 +164,9 @@ public class NPCChatInstance : MonoBehaviour
             {
                 if (npc != null)
                 {
+                    // Stop any ongoing speech immediately
+                    npc.ttsHandler?.ClearQueue();
+
                     npc.memory.AddDialogueTurn("User", userText);
                     // Each NPC asks LLM if it should respond
                     npc.AskLLMIfShouldRespond(userText);
@@ -241,7 +244,7 @@ public class NPCChatInstance : MonoBehaviour
         if (DialogueManager.Instance != null && DialogueManager.Instance.RequestTurn(npcProfile.npcName))
         {
             Debug.Log($"[NPCChatInstance] {npcProfile.npcName} is initiating the introduction.");
-            await ExecuteSpeech("Introduce yourself and welcome the candidate to the interview.");
+            await ExecuteSpeech("Briefly introduce yourself and welcome the candidate.");
         }
     }
 

@@ -186,6 +186,9 @@ public class DialogueManager : MonoBehaviour
             return;
         }
 
+        // Clear history to ensure a fresh start
+        ClearHistory();
+
         var npcInstances = NPCManager.Instance?.npcInstances;
         if (npcInstances != null && npcInstances.Count > 0)
         {
