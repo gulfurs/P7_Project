@@ -34,6 +34,8 @@ public class NPCChatInstance : MonoBehaviour
     public TMP_Text npcNameLabel;
     public TMP_Text memoryDisplayText;
 
+    public event System.Action OnInteractionComplete;
+
     private CancellationTokenSource cts;
     private bool isCurrentlySpeaking;
 
@@ -231,6 +233,10 @@ public class NPCChatInstance : MonoBehaviour
                 : $"Ask a relevant follow-up question to: {userAnswer}";
             await ExecuteSpeech(instruction);
         }
+        else
+        {
+            OnInteractionComplete?.Invoke();
+        }
     }
     
     /// <summary>
@@ -302,6 +308,14 @@ public class NPCChatInstance : MonoBehaviour
         if (outputText) outputText.text = "";
         ResetMetadataParsing();
 
+        // Start Timers
+        if (LatencyEvaluator.Instance != null)
+        {
+            LatencyEvaluator.Instance.StartTimer("LLM_Total");
+            LatencyEvaluator.Instance.StartTimer("LLM_FirstToken");
+        }
+        bool isFirstToken = true;
+
         // Stream response with TTS buffering
         var ttsBuffer = new StringBuilder();
         var displayBuffer = new StringBuilder();
@@ -313,18 +327,30 @@ public class NPCChatInstance : MonoBehaviour
         {
             fullResponse = await System.Threading.Tasks.Task.Run(() => 
                 llmConfig.GetLlamaController()?.GenerateReply(messages, 
-                    token => UnityMainThreadDispatcher.Enqueue(() => 
-                        ProcessToken(token, ttsBuffer, displayBuffer, ttsActive, !ttsActive)), 
+                    token => UnityMainThreadDispatcher.Enqueue(() => {
+                        if (isFirstToken && LatencyEvaluator.Instance != null) {
+                            LatencyEvaluator.Instance.StopTimer("LLM_FirstToken");
+                            isFirstToken = false;
+                        }
+                        ProcessToken(token, ttsBuffer, displayBuffer, ttsActive, !ttsActive);
+                    }), 
                     cts.Token), 
                 cts.Token).ConfigureAwait(true);
         }
         else
         {
+            if (ollamaClient == null) return;
             var result = await ollamaClient.SendChatAsync(messages, 
                 npcProfile.GetEffectiveTemperature(), 
                 npcProfile.GetEffectiveRepeatPenalty(), 
                 null,
-                token => ProcessToken(token, ttsBuffer, displayBuffer, ttsActive, !ttsActive),
+                token => {
+                    if (isFirstToken && LatencyEvaluator.Instance != null) {
+                        LatencyEvaluator.Instance.StopTimer("LLM_FirstToken");
+                        isFirstToken = false;
+                    }
+                    ProcessToken(token, ttsBuffer, displayBuffer, ttsActive, !ttsActive);
+                },
                 cts.Token).ConfigureAwait(true);
             
             if (!string.IsNullOrEmpty(result.error))
@@ -335,6 +361,9 @@ public class NPCChatInstance : MonoBehaviour
             }
             fullResponse = result.content;
         }
+
+        if (LatencyEvaluator.Instance != null)
+            LatencyEvaluator.Instance.StopTimer("LLM_Total");
 
         // Process remaining TTS and store response
         ProcessRemainingTTS(ttsBuffer, displayBuffer.ToString(), ttsActive);
@@ -464,6 +493,7 @@ public class NPCChatInstance : MonoBehaviour
     {
         isCurrentlySpeaking = false;
         DialogueManager.Instance?.ReleaseTurn(npcProfile.npcName);
+        OnInteractionComplete?.Invoke();
     }
 
     public void OnSpeakerChanged(string speakerName)

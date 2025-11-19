@@ -101,7 +101,12 @@ public class NPCTTSHandler : MonoBehaviour
         
         // Start generation immediately
         if (!isGenerating)
+        {
+            if (LatencyEvaluator.Instance != null)
+                LatencyEvaluator.Instance.StartTimer("TTS_Generation");
+
             StartCoroutine(GenerateAudioInBackground());
+        }
         
         // Start playback if not already playing
         if (playbackCoroutine == null)
@@ -140,6 +145,16 @@ public class NPCTTSHandler : MonoBehaviour
                     // Add to pre-rendered queue (ready to play)
                     preRenderedQueue.Enqueue(request);
                     Debug.Log($"✅ TTS audio ready, queue size: {preRenderedQueue.Count}");
+
+                    if (LatencyEvaluator.Instance != null)
+                    {
+                        // Only stop if it was running (captures first chunk of batch)
+                        LatencyEvaluator.Instance.StopTimer("TTS_Generation");
+                        if (preRenderedQueue.Count == 1)
+                        {
+                             LatencyEvaluator.Instance.StartTimer("TTS_PlaybackDelay");
+                        }
+                    }
                 }
                 else
                 {
@@ -178,6 +193,10 @@ public class NPCTTSHandler : MonoBehaviour
             if (request.clip != null)
             {
                 Debug.Log($"[TTS] Queued clip ready for playback: {request.clip.name}");
+                
+                if (LatencyEvaluator.Instance != null)
+                    LatencyEvaluator.Instance.StopTimer("TTS_PlaybackDelay");
+
                 request.onStartPlayback?.Invoke();
                 yield return StartCoroutine(PlayAudioClip(request.clip));
             }
