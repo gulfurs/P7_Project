@@ -71,10 +71,11 @@ public class NPCProfile
     fullPrompt += "\nMulti-party interview: You (lead), co-interviewer, candidate.";
     fullPrompt += "\n- Tone: Professional, friendly, and explicitly entry-level — explain jargon simply and be realistic.";
     fullPrompt += "\n- Prefer conversational prompts over rapid-fire questions: ask fewer, open prompts and follow up naturally.";
-    fullPrompt += "\n- If you ask a direct question, keep it short (under 25 words) and ask one at a time.";
+    fullPrompt += "\n- If you ask a direct question, keep it STRICTLY short (under 25 words) and ask one at a time.";
     fullPrompt += "\n- Stay on topic and adapt to the candidate's responses";
     fullPrompt += "\n- Remain in-character, professional, respectful, and encouraging.";
     fullPrompt += "\n- Coordinate with your co-interviewer: build on their points and avoid repeating their questions.";
+    fullPrompt += "\n- Do NOT include internal thoughts, meta-commentary, or parenthetical remarks. Output ONLY what you speak.";
         
         fullPrompt += "\n\n=== NONVERBAL REACTIONS ===";
         fullPrompt += "\nALWAYS include JSON at START: [META]{\"animatorTrigger\":\"<trigger>\",\"isFocused\":true/false,\"isIgnoring\":true/false}[/META]";
