@@ -260,6 +260,7 @@ public class NPCAnimatorConfig
 
     public void TickGaze()
     {
+        /*
         // Keep API compatibility — we don't drive transforms directly here.
         // If a Multi-Aim Constraint is assigned, update its source weights.
         if (multiAimConstraint == null)
@@ -279,21 +280,8 @@ public class NPCAnimatorConfig
         }
         else
         {
-            switch (currentAttentionState)
-            {
-                case AttentionState.Focused:
-                    primaryWeight = 1f; // look at speaker/target
-                    secondaryWeight = 0f;
-                    break;
-                case AttentionState.Ignoring:
-                    primaryWeight = 0f;
-                    secondaryWeight = 1f; // look away / head toward notes
-                    break;
-                default:
-                    primaryWeight = 0.6f; // slight preference to target
-                    secondaryWeight = 0f;
-                    break;
-            }
+            primaryWeight = 0f;
+            secondaryWeight = 1f;
         }
 
         var sources = multiAimConstraint.data.sourceObjects;
@@ -309,7 +297,7 @@ public class NPCAnimatorConfig
         }
 
         // Reassign back in case the constraint needs the updated array.
-        multiAimConstraint.data.sourceObjects = sources;
+        multiAimConstraint.data.sourceObjects = sources; */
     }
 
     private void UpdateLookTarget(bool immediate)
