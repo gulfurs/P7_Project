@@ -1,10 +1,13 @@
 using UnityEngine;
+using TMPro;
 
 public class PauseHandler : MonoBehaviour
 {
     private InputHandler input;
     private bool paused = false;
     private bool prevAim = false;
+
+    [SerializeField] private TMP_InputField defaultInputField;
 
     void Start()
     {
@@ -18,6 +21,11 @@ public class PauseHandler : MonoBehaviour
             TogglePause();
         }
 
+        if (paused && Input.GetKeyDown(KeyCode.Return))
+        {
+            SubmitInput();
+        }
+
         prevAim = input.aim;
     }
 
@@ -29,11 +37,29 @@ public class PauseHandler : MonoBehaviour
         {
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
+
+            if (defaultInputField != null)
+            {
+                defaultInputField.Select();
+                defaultInputField.ActivateInputField();
+            }
         }
         else
         {
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
         }
+    }
+
+    private void SubmitInput()
+    {
+        if (defaultInputField == null) return;
+
+        string text = defaultInputField.text;
+
+        Debug.Log("Submitted: " + text);
+
+        defaultInputField.text = "";
+        defaultInputField.ActivateInputField();
     }
 }
