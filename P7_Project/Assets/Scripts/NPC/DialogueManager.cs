@@ -6,20 +6,23 @@ using UnityEngine;
 /// </summary>
 public class DialogueManager : MonoBehaviour
 {
-    public enum InterviewPhase { Introduction, Main, Conclusion }
+    public enum InterviewPhase { Introduction, HRRound, TechRound, Conclusion }
 
     public static DialogueManager Instance { get; private set; }
     
     [Header("Interview State")]
     public InterviewPhase currentPhase = InterviewPhase.Introduction;
-    [Tooltip("The number of total turns before the interview enters the Conclusion phase.")]
-    public int conclusionTurnThreshold = 10;
+    
+    [Header("Phase Settings")]
+    public int hrRoundTurns = 2;
+    public int techRoundTurns = 2;
+    
+    [Header("Runtime State")]
+    public int turnsInCurrentPhase = 0;
     public string currentSpeaker = "";
     public string lastSpeakerName = "";
     
     private readonly List<string> speakerHistory = new List<string>();
-    private readonly List<(string npcName, bool wantsToSpeak)> decisionsThisRound 
-        = new List<(string, bool)>();
     
     [Header("Debug Info")]
     public int totalTurns = 0;
@@ -52,51 +55,19 @@ public class DialogueManager : MonoBehaviour
         return true;
     }
     
-    /// <summary>
-    /// Get conversation context for LLM
-    /// </summary>
-    public string GetTurnHistory()
-    {
-        if (speakerHistory.Count == 0)
-            return "";
-        
-        int showLast = Mathf.Min(3, speakerHistory.Count);
-        var recent = new List<string>();
-        for (int i = speakerHistory.Count - showLast; i < speakerHistory.Count; i++)
-        {
-            recent.Add(speakerHistory[i]);
-        }
-        
-        return string.Join(" → ", recent);
-    }
-    
-    /// <summary>
-    /// Check if NPC spoke last (for LLM context)
-    /// </summary>
-    public bool WasLastSpeaker(string npcName)
-    {
-        return speakerHistory.Count > 0 && speakerHistory[speakerHistory.Count - 1] == npcName;
-    }
-    
     private void GrantTurn(string npcName)
     {
         lastSpeakerName = currentSpeaker;
         currentSpeaker = npcName;
         totalTurns++;
+        turnsInCurrentPhase++;
         
         speakerHistory.Add(npcName);
         if (speakerHistory.Count > 10)
             speakerHistory.RemoveAt(0);
         
-        Debug.Log($"🎤 {npcName} granted turn (#{totalTurns})");
+        Debug.Log($"🎤 {npcName} granted turn (#{totalTurns}) in phase {currentPhase} (Turn {turnsInCurrentPhase})");
         NPCManager.Instance?.NotifySpeakerChanged(npcName);
-
-        // Check if it's time to conclude the interview
-        if (currentPhase == InterviewPhase.Main && totalTurns >= conclusionTurnThreshold)
-        {
-            currentPhase = InterviewPhase.Conclusion;
-            Debug.Log("📜 Interview phase changed to Conclusion");
-        }
     }
     
     public void ReleaseTurn(string npcName)
@@ -107,13 +78,57 @@ public class DialogueManager : MonoBehaviour
             Debug.Log($"✅ {npcName} released turn");
             NPCManager.Instance?.NotifySpeakerChanged(string.Empty);
 
-            // Auto-transition from intro to main interview after first turn
-            if (currentPhase == InterviewPhase.Introduction)
-            {
-                currentPhase = InterviewPhase.Main;
-                Debug.Log("📜 Interview phase changed to Main");
-            }
+            CheckPhaseTransition();
         }
+    }
+
+    private void CheckPhaseTransition()
+    {
+        switch (currentPhase)
+        {
+            case InterviewPhase.Introduction:
+                // After the first introduction (usually HR), move to HR round
+                // Or if we want both to introduce, we wait for 2 turns.
+                // Let's assume 1 turn for Intro is enough for now as per previous logic, 
+                // or maybe 2 if we want both to say hi.
+                // The user said "cleaner implementation". 
+                // Let's stick to: Intro -> HR Round -> Tech Round -> Conclusion
+                if (turnsInCurrentPhase >= 1) 
+                {
+                    TransitionToPhase(InterviewPhase.HRRound);
+                }
+                break;
+
+            case InterviewPhase.HRRound:
+                if (turnsInCurrentPhase >= hrRoundTurns)
+                {
+                    TransitionToPhase(InterviewPhase.TechRound);
+                }
+                break;
+
+            case InterviewPhase.TechRound:
+                if (turnsInCurrentPhase >= techRoundTurns)
+                {
+                    TransitionToPhase(InterviewPhase.Conclusion);
+                }
+                break;
+                
+            case InterviewPhase.Conclusion:
+                // End after 1 turn?
+                if (turnsInCurrentPhase >= 1)
+                {
+                    // Maybe just stay in conclusion or end?
+                    // OnUserAnswered handles EndInterview if in Conclusion.
+                }
+                break;
+        }
+    }
+
+    private void TransitionToPhase(InterviewPhase nextPhase)
+    {
+        currentPhase = nextPhase;
+        turnsInCurrentPhase = 0;
+        Debug.Log($"📜 Interview phase changed to {currentPhase}");
     }
     
     public void OnUserAnswered(string answer)
@@ -125,7 +140,6 @@ public class DialogueManager : MonoBehaviour
         }
 
         NPCManager.Instance?.NotifySpeakerChanged("User");
-        decisionsThisRound.Clear();  // Reset for new round
     }
 
     private void EndInterview()
@@ -136,32 +150,6 @@ public class DialogueManager : MonoBehaviour
         #else
             Application.Quit();
         #endif
-    }
-    
-    /// <summary>
-    /// Track a decision and return whether this NPC should be forced to speak
-    /// Supports any number of NPCs:
-    /// - If anyone wants to speak, the FIRST one gets the turn
-    /// - If nobody wants to speak, pick a random NPC
-    /// </summary>
-    public bool RecordDecision(string npcName, bool wantsToSpeak)
-    {
-        decisionsThisRound.Add((npcName, wantsToSpeak));
-        
-        // If anyone wants to speak, only the FIRST one returns true
-        foreach (var (name, wants) in decisionsThisRound)
-        {
-            if (wants) return name == npcName;
-        }
-        
-        // If nobody wanted to speak, pick a random NPC
-        if (decisionsThisRound.Count > 0)
-        {
-            int winner = UnityEngine.Random.Range(0, decisionsThisRound.Count);
-            return decisionsThisRound[winner].npcName == npcName;
-        }
-        
-        return false;
     }
     
     [ContextMenu("Clear Interview")]

@@ -168,67 +168,81 @@ public class NPCChatInstance : MonoBehaviour
                     npc.ttsHandler?.ClearQueue();
 
                     npc.memory.AddDialogueTurn("User", userText);
-                    // Each NPC asks LLM if it should respond
-                    npc.AskLLMIfShouldRespond(userText);
+                    // Each NPC decides if it should respond
+                    npc.DecideAndRespond(userText);
                 }
             }
         }
     }
     
     /// <summary>
-    /// Ask the LLM itself whether this NPC should ask a follow-up
+    /// Decide if this NPC should respond based on phase and role, then execute speech.
+    /// No extra LLM call needed for decision making.
     /// </summary>
-    public async void AskLLMIfShouldRespond(string userAnswer)
+    public async void DecideAndRespond(string userAnswer)
     {
         if (!enableAutoResponse || isCurrentlySpeaking)
             return;
-        
-        // Build decision prompt
-        string decisionPrompt = BuildTurnDecisionPrompt(userAnswer);
-        
-        var messages = new List<OllamaChatClient.ChatMessage>
-        {
-            new OllamaChatClient.ChatMessage { role = "system", content = decisionPrompt },
-            new OllamaChatClient.ChatMessage { role = "user", content = userAnswer }
-        };
-        
-        // Ask LLM for decision (should be quick, low temp)
-        var response = await ollamaClient.SendChatAsync(
-            messages,
-            temperature: 0.3f, // Low temp for consistent decisions
-            repeatPenalty: 1.0f,
-            null,
-            null,
-            default
-        ).ConfigureAwait(true);
 
-        if (!string.IsNullOrEmpty(response.error))
-            return;
+        bool shouldRespond = false;
+        var dm = DialogueManager.Instance;
         
-        // Parse LLM decision
-        string decision = response.content.Trim().ToLower();
-        bool shouldRespond = decision.Contains("yes") || decision.Contains("respond");
-        
-        Debug.Log($"🤖 {npcProfile.npcName} LLM decision: {decision.Substring(0, Mathf.Min(50, decision.Length))}... → {(shouldRespond ? "RESPOND" : "PASS")}");
-        
-        // Check if we should force a response (second NPC if first passed)
-        if (DialogueManager.Instance != null)
+        if (dm == null) return;
+
+        // 1. Check if addressed directly (overrides everything)
+        if (userAnswer.IndexOf(npcProfile.npcName, StringComparison.OrdinalIgnoreCase) >= 0)
         {
-            // During the main phase, use the decision logic. In other phases, this might be different.
-            if (DialogueManager.Instance.currentPhase == DialogueManager.InterviewPhase.Main)
+            shouldRespond = true;
+        }
+        // 2. Check Phase Logic
+        else
+        {
+            switch (dm.currentPhase)
             {
-                shouldRespond = DialogueManager.Instance.RecordDecision(npcProfile.npcName, shouldRespond);
+                case DialogueManager.InterviewPhase.Introduction:
+                    // Only HR Lead (or first NPC) responds in intro if not addressed
+                    // Assuming HR Lead is the one who starts.
+                    if (npcProfile.role == NPCProfile.NPCRole.HRLead) shouldRespond = true;
+                    break;
+                    
+                case DialogueManager.InterviewPhase.HRRound:
+                    if (npcProfile.role == NPCProfile.NPCRole.HRLead) shouldRespond = true;
+                    break;
+                    
+                case DialogueManager.InterviewPhase.TechRound:
+                    if (npcProfile.role == NPCProfile.NPCRole.TechnicalAnalyst) shouldRespond = true;
+                    break;
+                    
+                case DialogueManager.InterviewPhase.Conclusion:
+                    if (npcProfile.role == NPCProfile.NPCRole.HRLead) shouldRespond = true;
+                    break;
             }
         }
         
         if (shouldRespond)
         {
             // Request turn and generate actual response
-            if (DialogueManager.Instance != null && DialogueManager.Instance.RequestTurn(npcProfile.npcName))
+            if (dm.RequestTurn(npcProfile.npcName))
             {
-                string instruction = (DialogueManager.Instance.currentPhase == DialogueManager.InterviewPhase.Conclusion)
-                    ? "It's time to conclude the interview. Ask a final question or give some closing remarks."
-                    : $"The candidate said: \"{userAnswer}\". Respond naturally. If they asked you a question, answer it. If they gave an answer, comment on it and ask a relevant follow-up question.";
+                string instruction = "";
+                switch (dm.currentPhase)
+                {
+                    case DialogueManager.InterviewPhase.Introduction:
+                         instruction = "Briefly introduce yourself and the team.";
+                         break;
+                    case DialogueManager.InterviewPhase.HRRound:
+                         instruction = $"The candidate said: \"{userAnswer}\". You are the HR Lead. Acknowledge their answer and ask a behavioral or soft-skill question.";
+                         break;
+                    case DialogueManager.InterviewPhase.TechRound:
+                         instruction = $"The candidate said: \"{userAnswer}\". You are the Technical Analyst. Acknowledge their answer and ask a technical question relevant to the job.";
+                         break;
+                    case DialogueManager.InterviewPhase.Conclusion:
+                         instruction = "It's time to conclude the interview. Thank the candidate and give some closing remarks.";
+                         break;
+                    default:
+                         instruction = $"The candidate said: \"{userAnswer}\". Respond naturally.";
+                         break;
+                }
 
                 await ExecuteSpeech(instruction);
             }
@@ -246,56 +260,6 @@ public class NPCChatInstance : MonoBehaviour
             Debug.Log($"[NPCChatInstance] {npcProfile.npcName} is initiating the introduction.");
             await ExecuteSpeech("Briefly introduce yourself and welcome the candidate.");
         }
-    }
-
-    /// <summary>
-    /// Build prompt for LLM to decide whether to respond
-    /// </summary>
-    private string BuildTurnDecisionPrompt(string userAnswer)
-    {
-        var promptBuilder = new StringBuilder();
-        var dialogueManager = DialogueManager.Instance;
-
-        if (dialogueManager == null)
-        {
-            // Fallback if DialogueManager is not available
-            promptBuilder.Append("You are ").Append(npcProfile.npcName).Append(". ")
-                .Append(npcProfile.systemPrompt)
-                .Append("\n\nCandidate said: \"").Append(userAnswer).Append("\"\n")
-                .Append("Do you have a relevant follow-up? YES or NO only.");
-            return promptBuilder.ToString();
-        }
-
-        // The prompt changes based on the interview phase
-        switch (dialogueManager.currentPhase)
-        {
-            case DialogueManager.InterviewPhase.Introduction:
-                promptBuilder.Append("You are ").Append(npcProfile.npcName).Append(". ")
-                    .Append("The interview is just starting. The first speaker has just introduced themselves. ")
-                    .Append("Is it your turn to introduce yourself now? Respond YES or NO.");
-                break;
-
-            case DialogueManager.InterviewPhase.Conclusion:
-                promptBuilder.Append("You are ").Append(npcProfile.npcName).Append(". ")
-                    .Append("The interview has reached its conclusion phase. ")
-                    .Append("Should you be the one to deliver the closing remarks or ask a final question? Respond YES or NO.");
-                break;
-
-            case DialogueManager.InterviewPhase.Main:
-            default:
-                promptBuilder.Append("You are ").Append(npcProfile.npcName).Append(". ")
-                    .Append(npcProfile.systemPrompt)
-                    .Append("\n\nCandidate said: \"").Append(userAnswer).Append("\"\n")
-                    .Append("INSTRUCTIONS:\n")
-                    .Append("1. If the candidate mentions your name (").Append(npcProfile.npcName).Append(") or asks you a question, you MUST respond 'YES'.\n")
-                    .Append("2. If the candidate is clearly talking to someone else, respond 'NO'.\n")
-                    .Append("3. If the candidate is answering a general question, and you have a relevant follow-up based on your expertise, respond 'YES'.\n")
-                    .Append("4. Be proactive but polite.\n")
-                    .Append("Response (YES or NO only):");
-                break;
-        }
-
-        return promptBuilder.ToString();
     }
 
     /// <summary>

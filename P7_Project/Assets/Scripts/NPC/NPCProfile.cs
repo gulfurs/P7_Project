@@ -36,6 +36,11 @@ public class NPCProfile
     // Optional reference to the NPC's visual representation
     public GameObject npcGameObject;
     
+    [Header("Role Configuration")]
+    public NPCRole role = NPCRole.Other;
+
+    public enum NPCRole { HRLead, TechnicalAnalyst, Other }
+    
     /// <summary>
     /// Get the effective temperature for this NPC
     /// Combines LLMConfig default with per-NPC multiplier
