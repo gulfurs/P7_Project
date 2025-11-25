@@ -23,6 +23,9 @@ public class NPCChatInstance : MonoBehaviour
     [Header("Chat Settings")]
     public bool enableAutoResponse = true;
 
+
+    public WhisperContinuous whisperInput;
+
     [Header("UI")]
     public TMP_InputField userInput;
     public TMP_Text outputText;
@@ -64,6 +67,25 @@ public class NPCChatInstance : MonoBehaviour
         cts = null;
     }
 
+    private void HandleTTSGlobalStart()
+    {
+        if (whisperInput != null)
+        {
+            Debug.Log("[NPCChatInstance] TTS started – disabling Whisper sending.");
+            whisperInput.SetSendingEnabled(false);
+        }
+    }
+
+    private void HandleTTSGlobalEnd()
+    {
+        if (whisperInput != null)
+        {
+            Debug.Log("[NPCChatInstance] TTS finished – enabling Whisper sending.");
+            whisperInput.SetSendingEnabled(true);
+        }
+    }
+
+
     private void InitializeComponents()
     {
         // Auto-find OllamaClient
@@ -95,11 +117,19 @@ public class NPCChatInstance : MonoBehaviour
                     npcProfile.audioSource.playOnAwake = false;
                 }
             }
-            
+
             // Initialize TTS handler with audio source and voice
             ttsHandler.Initialize(npcProfile.audioSource, npcProfile.voiceName);
         }
+
+        // 👉 NOW the handler definitely exists, so hook up events
+        if (ttsHandler != null && whisperInput != null)
+        {
+            ttsHandler.OnGlobalPlaybackStart += HandleTTSGlobalStart;
+            ttsHandler.OnGlobalPlaybackEnd += HandleTTSGlobalEnd;
+        }
     }
+
 
     private void RegisterWithManagers()
     {

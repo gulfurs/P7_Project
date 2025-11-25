@@ -72,7 +72,7 @@ public class PlayerMovement : MonoBehaviour
 
     private void LateUpdate()
     {
-        CameraRotation();
+        //CameraRotation();
     }
 
     private void GroundedCheck()
@@ -123,7 +123,7 @@ public class PlayerMovement : MonoBehaviour
         controller.Move(move * speed * Time.deltaTime);
     }
 
-    private void CameraRotation()
+    /*private void CameraRotation()
     {
         if (input.look.sqrMagnitude >= 0.01f)
         {
@@ -136,7 +136,7 @@ public class PlayerMovement : MonoBehaviour
 
             transform.Rotate(Vector3.up * mouseX);
         }
-    }
+    }*/
 
     public void UnlockMove(bool value) => canMove = value;
 }

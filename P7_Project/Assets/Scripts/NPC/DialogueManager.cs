@@ -16,12 +16,17 @@ public class DialogueManager : MonoBehaviour
     [Header("Phase Settings")]
     public int hrRoundTurns = 2;
     public int techRoundTurns = 2;
-    
+
     [Header("Runtime State")]
     public int turnsInCurrentPhase = 0;
     public string currentSpeaker = "";
     public string lastSpeakerName = "";
-    
+
+    // New: require explicit final user input before concluding
+    [Header("Conclusion Settings")]
+    public bool requireFinalUserInput = true;
+    private bool awaitingFinalUserInput = false;
+
     private readonly List<string> speakerHistory = new List<string>();
     
     [Header("Debug Info")]
@@ -112,13 +117,13 @@ public class DialogueManager : MonoBehaviour
                     TransitionToPhase(InterviewPhase.Conclusion);
                 }
                 break;
-                
+
             case InterviewPhase.Conclusion:
-                // End after 1 turn?
-                if (turnsInCurrentPhase >= 1)
+                // End the interview after the conclusion phase has had its configured number of turns (1 by default)
+                // This will run when an NPC has taken and released a turn in Conclusion.
+                if (turnsInCurrentPhase >= 2)
                 {
-                    // Maybe just stay in conclusion or end?
-                    // OnUserAnswered handles EndInterview if in Conclusion.
+                    EndInterview();
                 }
                 break;
         }
@@ -129,16 +134,30 @@ public class DialogueManager : MonoBehaviour
         currentPhase = nextPhase;
         turnsInCurrentPhase = 0;
         Debug.Log($"📜 Interview phase changed to {currentPhase}");
+
+        // Do NOT auto-trigger NPC conclusion here.
+        // If concluding, require a final user input if configured.
+        if (currentPhase == InterviewPhase.Conclusion)
+        {
+            awaitingFinalUserInput = requireFinalUserInput;
+            Debug.Log($"🔔 Conclusion entered. Awaiting final user input: {awaitingFinalUserInput}");
+        }
     }
     
     public void OnUserAnswered(string answer)
     {
-        if (currentPhase == InterviewPhase.Conclusion)
+        // If we're in Conclusion and we're configured to require a final user input,
+        // consume that final input here (but do NOT end the interview immediately).
+        // Let the usual NPC response flow occur (NPCs will RequestTurn/Respond, then ReleaseTurn -> EndInterview).
+        if (currentPhase == InterviewPhase.Conclusion && awaitingFinalUserInput)
         {
-            EndInterview();
+            awaitingFinalUserInput = false;
+            Debug.Log("[DialogueManager] Final user input received for Conclusion. Allowing NPCs to respond.");
+            NPCManager.Instance?.NotifySpeakerChanged("User");
             return;
         }
 
+        // Default behavior for other phases: notify UI/animator that the user spoke.
         NPCManager.Instance?.NotifySpeakerChanged("User");
     }
 
@@ -148,7 +167,7 @@ public class DialogueManager : MonoBehaviour
         #if UNITY_EDITOR
             UnityEditor.EditorApplication.isPlaying = false;
         #else
-            Application.Quit();
+           // Application.Quit();
         #endif
     }
     
@@ -160,6 +179,7 @@ public class DialogueManager : MonoBehaviour
         lastSpeakerName = "";
         totalTurns = 0;
         currentPhase = InterviewPhase.Introduction; // Reset phase
+        awaitingFinalUserInput = false;
         Debug.Log("🔄 Interview cleared and reset to Introduction phase.");
     }
 
