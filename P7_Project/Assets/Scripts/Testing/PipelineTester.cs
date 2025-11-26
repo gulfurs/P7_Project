@@ -3,7 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 
-public class PipelineTester : MonoBehaviour
+/* public class PipelineTester : MonoBehaviour
 {
     public List<AudioClip> testClips;
     public NPCChatInstance targetNPC;
@@ -103,3 +103,4 @@ public class PipelineTester : MonoBehaviour
         File.WriteAllBytes(path, wavData);
     }
 }
+*/
