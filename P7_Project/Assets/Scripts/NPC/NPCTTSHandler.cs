@@ -13,16 +13,18 @@ public class NPCTTSHandler : MonoBehaviour
 {
     private AudioSource audioSource;
     private string voiceName;
+    public WhisperContinuous whisperInput;
+
     [Header("Python Execution")]
     [Tooltip("Optional explicit path to python executable for TTS generation. Leave empty to use system python.")]
     public string pythonExecutablePath = "";
-    
+
     private readonly Queue<TTSRequest> ttsQueue = new Queue<TTSRequest>();
     private readonly Queue<TTSRequest> preRenderedQueue = new Queue<TTSRequest>();
     private bool isGenerating = false;
     private bool isCurrentlyPlaying = false;
     private Coroutine playbackCoroutine = null;
-    
+
     [Serializable]
     private class TTSRequest
     {
@@ -30,24 +32,36 @@ public class NPCTTSHandler : MonoBehaviour
         public AudioClip clip;
         public Action onStartPlayback; // Callback when this clip starts playing
     }
-    
+
+    /// <summary>
+    /// Fired once when the first TTS clip of a response starts playing.
+    /// </summary>
+    public Action OnGlobalPlaybackStart;
+
+    /// <summary>
+    /// Fired once after all TTS work (generation + playback + queues) is done.
+    /// </summary>
+    public Action OnGlobalPlaybackEnd;
+
+    private bool hasGlobalStarted = false;
+
     /// <summary>
     /// Split response into TTS chunks at sentence boundaries
     /// </summary>
     public void ProcessResponseForTTS(string displayText)
     {
         if (string.IsNullOrEmpty(displayText)) return;
-        
-        var chunks = new System.Collections.Generic.List<string>();
-        var currentChunk = new System.Text.StringBuilder();
-        
+
+        var chunks = new List<string>();
+        var currentChunk = new StringBuilder();
+
         foreach (char c in displayText)
         {
             currentChunk.Append(c);
-            
+
             bool isSentenceEnding = c == '.' || c == '!' || c == '?';
             bool isLongClause = c == ',' && currentChunk.Length > 60;
-            
+
             if (isSentenceEnding || isLongClause)
             {
                 string chunk = currentChunk.ToString().Trim();
@@ -56,7 +70,7 @@ public class NPCTTSHandler : MonoBehaviour
                 currentChunk.Clear();
             }
         }
-        
+
         // Add remaining text
         if (currentChunk.Length > 0)
         {
@@ -64,18 +78,19 @@ public class NPCTTSHandler : MonoBehaviour
             if (chunk.Length > 0)
                 chunks.Add(chunk);
         }
-        
+
         // Enqueue all chunks
         foreach (var chunk in chunks)
             EnqueueSpeech(chunk, null);
     }
-    
+
     public void Initialize(AudioSource source, string voice)
     {
         audioSource = source;
         voiceName = voice;
+
     }
-    
+
     /// <summary>
     /// Check if TTS is currently speaking or has queued speech
     /// </summary>
@@ -83,78 +98,63 @@ public class NPCTTSHandler : MonoBehaviour
     {
         return isGenerating || isCurrentlyPlaying || ttsQueue.Count > 0 || preRenderedQueue.Count > 0;
     }
-    
+
     /// <summary>
     /// Add text chunk to TTS queue and start processing
     /// </summary>
     public void EnqueueSpeech(string text, Action onStartPlayback = null)
     {
         if (string.IsNullOrEmpty(text)) return;
-        
-        var request = new TTSRequest 
-        { 
+
+        var request = new TTSRequest
+        {
             text = text,
             onStartPlayback = onStartPlayback
         };
-        
+
         ttsQueue.Enqueue(request);
-        
+
         // Start generation immediately
         if (!isGenerating)
-        {
-            if (LatencyEvaluator.Instance != null)
-                LatencyEvaluator.Instance.StartTimer("TTS_Generation");
-
             StartCoroutine(GenerateAudioInBackground());
-        }
-        
+
         // Start playback if not already playing
         if (playbackCoroutine == null)
             playbackCoroutine = StartCoroutine(PlayPreRenderedQueue());
     }
-    
+
     /// <summary>
     /// Generate audio clips in background, independent of playback
     /// </summary>
     private IEnumerator GenerateAudioInBackground()
     {
         isGenerating = true;
-        
+
         while (ttsQueue.Count > 0)
         {
             var request = ttsQueue.Dequeue();
-            
+
             Debug.Log($"🎵 Generating TTS audio for: \"{request.text.Substring(0, Math.Min(30, request.text.Length))}...\"");
-            
+
             // Generate audio in background thread
             var ttsTask = System.Threading.Tasks.Task.Run(() => GenerateAudioData(request.text));
-            
+
             // Wait for generation
             while (!ttsTask.IsCompleted)
                 yield return null;
-            
+
             var audioBytes = ttsTask.Result;
             if (audioBytes != null && audioBytes.Length > 0)
             {
                 Debug.Log($"[TTS] Generated {audioBytes.Length} bytes");
                 // Convert to AudioClip
                 request.clip = CreateAudioClip(audioBytes);
-                
+
                 if (request.clip != null)
                 {
                     // Add to pre-rendered queue (ready to play)
                     preRenderedQueue.Enqueue(request);
                     Debug.Log($"✅ TTS audio ready, queue size: {preRenderedQueue.Count}");
-
-                    if (LatencyEvaluator.Instance != null)
-                    {
-                        // Only stop if it was running (captures first chunk of batch)
-                        LatencyEvaluator.Instance.StopTimer("TTS_Generation");
-                        if (preRenderedQueue.Count == 1)
-                        {
-                             LatencyEvaluator.Instance.StartTimer("TTS_PlaybackDelay");
-                        }
-                    }
                 }
                 else
                 {
@@ -166,10 +166,10 @@ public class NPCTTSHandler : MonoBehaviour
                 Debug.LogError($"[TTS] Audio generation failed! audioBytes={audioBytes}, length={audioBytes?.Length}");
             }
         }
-        
+
         isGenerating = false;
     }
-    
+
     /// <summary>
     /// Process TTS queue sequentially
     /// </summary>
@@ -182,21 +182,31 @@ public class NPCTTSHandler : MonoBehaviour
             {
                 if (!isGenerating && ttsQueue.Count == 0)
                 {
+                    // All TTS work is done: generation + playback + queues
+                    if (hasGlobalStarted)
+                    {
+                        hasGlobalStarted = false;
+                        OnGlobalPlaybackEnd?.Invoke();
+                    }
+
                     playbackCoroutine = null;
                     yield break;
                 }
                 yield return null;
             }
-            
+
             var request = preRenderedQueue.Dequeue();
-            
+
+            // Fire a "global start" once, when the first clip starts
+            if (!hasGlobalStarted)
+            {
+                hasGlobalStarted = true;
+                OnGlobalPlaybackStart?.Invoke();
+            }
+
             if (request.clip != null)
             {
                 Debug.Log($"[TTS] Queued clip ready for playback: {request.clip.name}");
-                
-                if (LatencyEvaluator.Instance != null)
-                    LatencyEvaluator.Instance.StopTimer("TTS_PlaybackDelay");
-
                 request.onStartPlayback?.Invoke();
                 yield return StartCoroutine(PlayAudioClip(request.clip));
             }
@@ -206,7 +216,7 @@ public class NPCTTSHandler : MonoBehaviour
             }
         }
     }
-    
+
     /// <summary>
     /// Create AudioClip from byte array
     /// </summary>
@@ -217,18 +227,18 @@ public class NPCTTSHandler : MonoBehaviour
             Debug.LogError("[TTS] AudioBytes are empty or null!");
             return null;
         }
-        
+
         int sampleCount = audioBytes.Length / 2;
         float[] audioData = new float[sampleCount];
         for (int i = 0; i < sampleCount; i++)
-            audioData[i] = System.BitConverter.ToInt16(audioBytes, i * 2) / 32768f;
-        
+            audioData[i] = BitConverter.ToInt16(audioBytes, i * 2) / 32768f;
+
         AudioClip clip = AudioClip.Create($"TTS_{Time.time}", sampleCount, 1, 22050, false);
         clip.SetData(audioData, 0);
         Debug.Log($"[TTS] 🎵 Created audio clip: {sampleCount} samples ({sampleCount / 22050.0f}s)");
         return clip;
     }
-    
+
     /// <summary>
     /// Play an audio clip and wait for completion
     /// </summary>
@@ -239,38 +249,38 @@ public class NPCTTSHandler : MonoBehaviour
             Debug.LogError("[TTS] AudioSource is NULL! Cannot play audio.");
             yield break;
         }
-        
+
         if (clip == null)
         {
             Debug.LogError("[TTS] AudioClip is NULL! Cannot play audio.");
             yield break;
         }
-        
+
         Debug.Log($"[TTS] 🔊 Playing audio clip: {clip.name} (length: {clip.length}s, samples: {clip.samples})");
-        
+
         isCurrentlyPlaying = true;
         audioSource.clip = clip;
-        
+
         if (!audioSource.gameObject.activeInHierarchy)
             Debug.LogError("[TTS] AudioSource GameObject is inactive!");
-        
+
         if (!audioSource.enabled)
             Debug.LogError("[TTS] AudioSource component is disabled!");
-        
+
         audioSource.Play();
         Debug.Log($"[TTS] Audio playback started. isPlaying={audioSource.isPlaying}");
-        
+
         int frames = 0;
         while (audioSource.isPlaying)
         {
             frames++;
             yield return null;
         }
-        
+
         Debug.Log($"[TTS] ✅ Audio playback completed (waited {frames} frames)");
         isCurrentlyPlaying = false;
     }
-    
+
     /// <summary>
     /// Generate audio data in background thread
     /// </summary>
@@ -278,7 +288,7 @@ public class NPCTTSHandler : MonoBehaviour
     {
         string tempScript = System.IO.Path.GetTempFileName() + ".py";
         string cleanText = text.Replace("'", "\\'").Replace("\"", "\\\"").Replace("\n", " ").Trim();
-        
+
         if (string.IsNullOrEmpty(cleanText)) return new byte[0];
 
         // --- Start of Fix: Use absolute path for TTS model from project root ---
@@ -286,7 +296,7 @@ public class NPCTTSHandler : MonoBehaviour
         string projectRoot = System.IO.Directory.GetParent(Application.dataPath).FullName;
         string modelPath = System.IO.Path.Combine(projectRoot, $"{voiceName}.onnx");
         // Python requires forward slashes, even on Windows
-        modelPath = modelPath.Replace("\\", "/"); 
+        modelPath = modelPath.Replace("\\", "/");
         // --- End of Fix ---
 
         // Try Piper first (high quality), fallback to pyttsx3 (basic TTS)
@@ -347,7 +357,7 @@ except Exception as e:
 ";
 
         System.IO.File.WriteAllText(tempScript, script);
-        
+
         var process = new System.Diagnostics.Process();
         process.StartInfo.FileName = GetPythonExecutablePath();
         process.StartInfo.Arguments = $"\"{tempScript}\"";
@@ -355,24 +365,24 @@ except Exception as e:
         process.StartInfo.CreateNoWindow = true;
         process.StartInfo.RedirectStandardOutput = true;
         process.StartInfo.RedirectStandardError = true;
-        
+
         process.Start();
-        
+
         var audioBytes = new List<byte>();
         var buffer = new byte[8192];
         int bytesRead;
-        
+
         while ((bytesRead = process.StandardOutput.BaseStream.Read(buffer, 0, buffer.Length)) > 0)
         {
             for (int i = 0; i < bytesRead; i++)
                 audioBytes.Add(buffer[i]);
         }
-        
+
         // Read error output if any
         string errorOutput = process.StandardError.ReadToEnd();
-        
+
         process.WaitForExit();
-        
+
         if (process.ExitCode != 0)
         {
             if (!string.IsNullOrEmpty(errorOutput))
@@ -380,10 +390,10 @@ except Exception as e:
             else
                 Debug.LogError("[TTS] TTS generation failed with no error message");
         }
-        
+
         process?.Dispose();
         System.IO.File.Delete(tempScript);
-        
+
         return audioBytes.ToArray();
     }
 
@@ -394,7 +404,7 @@ except Exception as e:
 
         return "python";
     }
-    
+
     /// <summary>
     /// Clear TTS queue
     /// </summary>
@@ -404,9 +414,9 @@ except Exception as e:
         preRenderedQueue.Clear();
         if (audioSource != null)
             audioSource.Stop();
-        
+
         isCurrentlyPlaying = false;
-        
+
         if (playbackCoroutine != null)
         {
             StopCoroutine(playbackCoroutine);

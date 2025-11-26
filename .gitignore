@@ -97,3 +97,14 @@ InitTestScene*.unity*
 
 # Auto-generated scenes by play mode tests
 /[Aa]ssets/[Ii]nit[Tt]est[Ss]cene*.unity*
+P7_Project/Assets/StreamingAssets/Whisper/ggml-medium.bin
+P7_Project/Assets/StreamingAssets/Whisper/ggml-medium.bin.meta
+P7_Project/Assets/Plugins/x86_64/cublasLt64_13.dll
+P7_Project/Assets/Plugins/x86_64/cublasLt64_13.dll.meta
+P7_Project/Assets/Plugins/x86_64/cusolver64_13.dll
+P7_Project/Assets/Plugins/x86_64/cusolver64_13.dll.meta
+P7_Project/Assets/Plugins/x86_64/ggml-cuda.dll.meta
+P7_Project/Assets/Plugins/x86_64/cusolverMg64_13.dll.meta
+P7_Project/Assets/Plugins/x86_64/curand64_10.dll.meta
+P7_Project/Assets/Plugins/x86_64/cudart64_13.dll.meta
+P7_Project/Assets/Plugins/x86_64/cublas64_13.dll.meta
