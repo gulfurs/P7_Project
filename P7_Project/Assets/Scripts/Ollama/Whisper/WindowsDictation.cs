@@ -25,6 +25,9 @@ public class WindowsDictation : MonoBehaviour
     [Tooltip("If false, you must call EnableSending(true) / SetSendingEnabled(true) before the mic input will ever call NPCChatInstance.Send().")]
     public bool sendingEnabledAtStart = false;
 
+    [Tooltip("Cooldown period after sending before accepting new input (in seconds).")]
+    public float sendCooldownDuration = 10f;
+
     private DictationRecognizer dictationRecognizer;
 
     // state
@@ -33,6 +36,8 @@ public class WindowsDictation : MonoBehaviour
     private float utteranceStartTime = -1f;
     private bool hasPendingUtterance = false;
     private bool sendingEnabled;
+    private float lastSendTime = -1f;
+    private bool isInCooldown = false;
 
     /// <summary>
     /// For external scripts to check whether we currently allow sending.
@@ -110,7 +115,7 @@ public class WindowsDictation : MonoBehaviour
     void Update()
     {
         // Only try to commit utterances when sending is actually allowed.
-        if (!sendingEnabled)
+        if (!sendingEnabled || isInCooldown)
             return;
 
         if (!hasPendingUtterance || lastSpeechTime <= 0f)
@@ -130,6 +135,16 @@ public class WindowsDictation : MonoBehaviour
         }
     }
 
+    void LateUpdate()
+    {
+        // Check if cooldown has expired
+        if (isInCooldown && Time.time - lastSendTime >= sendCooldownDuration)
+        {
+            isInCooldown = false;
+            Debug.Log("[WindowsDictation] Cooldown expired. Ready to accept new input.");
+        }
+    }
+
     private void StartDictation()
     {
         if (dictationRecognizer != null && dictationRecognizer.Status != SpeechSystemStatus.Running)
@@ -141,59 +156,32 @@ public class WindowsDictation : MonoBehaviour
 
     private void OnDictationHypothesis(string text)
     {
-        if (!sendingEnabled) return;
+        if (!sendingEnabled || isInCooldown) return;
 
-        Debug.Log($"[WindowsDictation] Hypothesis: {text}");
-
-        // If this is the first speech in this answer, mark start time
-        if (!hasPendingUtterance)
-        {
-            utteranceStartTime = Time.time;
-            currentTranscript = text;
-        }
-        else
-        {
-            currentTranscript = (currentTranscript + " " + text).Trim();
-        }
-
-        // Update UI live as the user speaks
-        if (inputField != null)
-        {
-            inputField.text = currentTranscript;
-        }
-
-        // Mark the time of this last speech chunk
-        lastSpeechTime = Time.time;
-        hasPendingUtterance = true;
+        Debug.Log($"[WindowsDictation] Hypothesis (ignored): {text}");
+        // Don't accumulate hypothesis - only use final results
     }
 
     private void OnDictationResult(string text, ConfidenceLevel confidence)
     {
-        if (!sendingEnabled) return;
+        if (!sendingEnabled || isInCooldown) return;
 
         Debug.Log($"[WindowsDictation] Result (confidence: {confidence}): {text}");
 
         if (string.IsNullOrWhiteSpace(text))
             return;
 
-        // If this is the first speech in this answer, mark start time
-        if (!hasPendingUtterance)
-        {
-            utteranceStartTime = Time.time;
-            currentTranscript = text;
-        }
-        else
-        {
-            currentTranscript = (currentTranscript + " " + text).Trim();
-        }
+        // Replace the entire transcript with the final result (don't append)
+        currentTranscript = text;
+        utteranceStartTime = Time.time;
 
-        // Update UI live as the user speaks
+        // Update UI with the final recognized text
         if (inputField != null)
         {
             inputField.text = currentTranscript;
         }
 
-        // Mark the time of this last speech chunk
+        // Mark the time of this final result
         lastSpeechTime = Time.time;
         hasPendingUtterance = true;
     }
@@ -273,6 +261,11 @@ public class WindowsDictation : MonoBehaviour
                 inputField.text = currentTranscript;
         }
 
+        // Start cooldown to prevent overlapping inputs
+        isInCooldown = true;
+        lastSendTime = Time.time;
+        Debug.Log($"[WindowsDictation] Input sent. Cooldown started ({sendCooldownDuration}s). No new input until then.");
+
         // Reset for next utterance
         currentTranscript = "";
         lastSpeechTime = -1f;
@@ -283,9 +276,6 @@ public class WindowsDictation : MonoBehaviour
         {
             inputField.text = "";
         }
-        
-        // Immediately restart listening for the next input
-        Debug.Log("[WindowsDictation] Ready for next input.");
     }
 
     void OnDestroy()
