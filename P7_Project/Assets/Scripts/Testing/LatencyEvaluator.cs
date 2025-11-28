@@ -4,7 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System;
-/*
+
 public class LatencyEvaluator : MonoBehaviour
 {
     public static LatencyEvaluator Instance { get; private set; }
@@ -62,4 +62,3 @@ public class LatencyEvaluator : MonoBehaviour
         results.Clear();
     }
 }
-*/
