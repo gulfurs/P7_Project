@@ -256,6 +256,10 @@ public class NPCTTSHandler : MonoBehaviour
             yield break;
         }
 
+        // Hook for latency profiler - First Audio
+        if (LatencyEvaluator.Instance != null)
+            LatencyEvaluator.Instance.MarkFirstAudio();
+
         Debug.Log($"[TTS] 🔊 Playing audio clip: {clip.name} (length: {clip.length}s, samples: {clip.samples})");
 
         isCurrentlyPlaying = true;

@@ -158,6 +158,10 @@ public class WindowsDictation : MonoBehaviour
     {
         if (!sendingEnabled || isInCooldown) return;
 
+        // Hook for latency profiler - Speech Start
+        if (LatencyEvaluator.Instance != null)
+            LatencyEvaluator.Instance.MarkSpeechStart();
+
         Debug.Log($"[WindowsDictation] Hypothesis (ignored): {text}");
         // Don't accumulate hypothesis - only use final results
     }
@@ -253,6 +257,11 @@ public class WindowsDictation : MonoBehaviour
         if (npcChatInstance != null && npcChatInstance.userInput != null)
         {
             npcChatInstance.userInput.text = currentTranscript;
+
+            // Hook for latency profiler - Input Sent
+            if (LatencyEvaluator.Instance != null)
+                LatencyEvaluator.Instance.MarkInputSent();
+
             npcChatInstance.Send();       // <- still the key requirement
         }
         else

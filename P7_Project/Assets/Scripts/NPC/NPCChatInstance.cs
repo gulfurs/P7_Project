@@ -34,6 +34,7 @@ public class NPCChatInstance : MonoBehaviour
 
     private CancellationTokenSource cts;
     private bool isCurrentlySpeaking;
+    private int lastResponseTokenCount = 0;
 
     private readonly StringBuilder metadataBuffer = new StringBuilder();
     private bool isParsingMetadata;
@@ -83,6 +84,10 @@ public class NPCChatInstance : MonoBehaviour
             Debug.Log("[NPCChatInstance] TTS finished – enabling Whisper sending.");
             whisperInput.SetSendingEnabled(true);
         }
+
+        // Hook for latency profiler - Interaction End
+        if (LatencyEvaluator.Instance != null)
+            LatencyEvaluator.Instance.MarkInteractionEnd(lastResponseTokenCount);
     }
 
 
@@ -328,6 +333,7 @@ public class NPCChatInstance : MonoBehaviour
         // Clear output and reset metadata parsing
         if (outputText) outputText.text = "";
         ResetMetadataParsing();
+        lastResponseTokenCount = 0;
 
         // Stream response with TTS buffering
         var ttsBuffer = new StringBuilder();
@@ -372,6 +378,12 @@ public class NPCChatInstance : MonoBehaviour
         bool ttsActive,
         bool shouldStreamDisplay)
     {
+        // Hook for latency profiler - First Token
+        if (LatencyEvaluator.Instance != null)
+            LatencyEvaluator.Instance.MarkFirstToken();
+
+        lastResponseTokenCount++;
+
         foreach (char c in token)
         {
             if (HandleMetadataChar(c, displayBuffer, ttsBuffer, ttsActive))
