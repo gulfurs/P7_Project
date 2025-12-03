@@ -4,10 +4,11 @@ using System.IO;
 using System.Text;
 using System;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 /// <summary>
-/// Academic-grade latency profiler - measures pipeline timing via direct hooks.
-/// Quantitative metrics only - suitable for peer-reviewed publication.
+/// Academic-grade latency profiler - measures pipeline timing via direct hooks + debug log fallback.
+/// Uses both event-based measurement and debug log analysis for safety net.
 /// </summary>
 public class LatencyEvaluator : MonoBehaviour
 {
@@ -34,14 +35,18 @@ public class LatencyEvaluator : MonoBehaviour
         
         public int tokenCount;
         public double tokensPerSec;
+        public string source;            // "hook" or "log"
     }
 
     private string csvFilePath;
+    private string debugLogPath;
     private List<LatencyMeasurement> allMeasurements = new List<LatencyMeasurement>();
+    private Queue<string> debugLogBuffer = new Queue<string>();
     
     // Current interaction state
     private LatencyMeasurement currentMeasurement;
     private bool isMeasuring = false;
+    private bool useDebugLogFallback = true;
 
     void Awake()
     {
@@ -62,12 +67,32 @@ public class LatencyEvaluator : MonoBehaviour
         string persistentPath = Application.persistentDataPath;
         string timestamp = System.DateTime.Now.ToString("yyyy_MM_dd_HH_mm_ss");
         csvFilePath = Path.Combine(persistentPath, $"latency_results_{timestamp}.csv");
+        debugLogPath = Path.Combine(persistentPath, $"debug_log_{timestamp}.txt");
 
         var header = new StringBuilder();
-        header.AppendLine("TestID,Timestamp,STT_Latency_ms,TTFT_ms,TTFB_Audio_ms,E2E_Latency_ms,TokenCount,TokensPerSec");
+        header.AppendLine("TestID,Timestamp,STT_Latency_ms,TTFT_ms,TTFB_Audio_ms,E2E_Latency_ms,TokenCount,TokensPerSec,Source");
         File.WriteAllText(csvFilePath, header.ToString());
+        File.WriteAllText(debugLogPath, "[Debug Log Buffer]\n");
         
-        Debug.Log($"[LatencyEvaluator] Initialized. Saving to: {csvFilePath}");
+        // Capture Unity debug logs
+        Application.logMessageReceived += OnLogMessageReceived;
+        
+        Debug.Log($"[LatencyEvaluator] ✅ Initialized. Results: {csvFilePath}");
+        Debug.Log($"[LatencyEvaluator] 📋 Debug logs: {debugLogPath}");
+    }
+
+    private void OnLogMessageReceived(string logString, string stackTrace, LogType type)
+    {
+        // Buffer key latency-related logs
+        if (logString.Contains("[Latency]") || logString.Contains("[PipelineTester]") || 
+            logString.Contains("📢 User answered") || logString.Contains("[TTS] Audio playback"))
+        {
+            string timestampedLog = $"[{System.DateTime.Now:HH:mm:ss.fff}] {logString}";
+            debugLogBuffer.Enqueue(timestampedLog);
+            
+            // Write to file in real-time
+            File.AppendAllText(debugLogPath, timestampedLog + Environment.NewLine);
+        }
     }
 
     // --- HOOKS ---
@@ -81,18 +106,16 @@ public class LatencyEvaluator : MonoBehaviour
         currentMeasurement.timestamp = System.DateTimeOffset.Now.ToUnixTimeMilliseconds();
         currentMeasurement.speechStartTick = System.DateTime.Now.Ticks;
         isMeasuring = true;
-        
-        // Debug.Log("[LatencyEvaluator] Speech Start Detected");
     }
 
     public void MarkInputSent()
     {
-        if (!isMeasuring) MarkSpeechStart(); // Fallback if speech start wasn't caught
+        if (!isMeasuring) MarkSpeechStart();
         
         if (currentMeasurement.inputSentTick == 0)
         {
             currentMeasurement.inputSentTick = System.DateTime.Now.Ticks;
-            // Debug.Log("[LatencyEvaluator] Input Sent");
+            Debug.Log("[Latency] Input Sent");
         }
     }
 
@@ -101,7 +124,8 @@ public class LatencyEvaluator : MonoBehaviour
         if (!isMeasuring || currentMeasurement.firstTokenTick > 0) return;
 
         currentMeasurement.firstTokenTick = System.DateTime.Now.Ticks;
-        // Debug.Log("[LatencyEvaluator] First Token Received");
+        currentMeasurement.source = "hook";
+        Debug.Log("[Latency] First Token Received");
     }
 
     public void MarkFirstAudio()
@@ -109,7 +133,8 @@ public class LatencyEvaluator : MonoBehaviour
         if (!isMeasuring || currentMeasurement.firstAudioTick > 0) return;
 
         currentMeasurement.firstAudioTick = System.DateTime.Now.Ticks;
-        // Debug.Log("[LatencyEvaluator] First Audio Playback");
+        currentMeasurement.source = "hook";
+        Debug.Log("[Latency] First Audio Playback");
     }
 
     public void MarkInteractionEnd(int tokenCount)
@@ -149,6 +174,9 @@ public class LatencyEvaluator : MonoBehaviour
 
     private void SaveMeasurement(LatencyMeasurement m)
     {
+        if (string.IsNullOrEmpty(m.source))
+            m.source = "hook";
+        
         allMeasurements.Add(m);
 
         var sb = new StringBuilder();
@@ -159,78 +187,116 @@ public class LatencyEvaluator : MonoBehaviour
         sb.Append($"{m.ttfbAudioMs:F2},");
         sb.Append($"{m.e2eLatencyMs:F2},");
         sb.Append($"{m.tokenCount},");
-        sb.Append($"{m.tokensPerSec:F2}");
+        sb.Append($"{m.tokensPerSec:F2},");
+        sb.AppendLine($"{m.source}");
 
-        File.AppendAllText(csvFilePath, sb.ToString() + Environment.NewLine);
+        File.AppendAllText(csvFilePath, sb.ToString());
         
-        Debug.Log($"[LatencyEvaluator] Saved: STT={m.sttLatencyMs:F0}ms, TTFT={m.ttftMs:F0}ms, TTFB={m.ttfbAudioMs:F0}ms, E2E={m.e2eLatencyMs:F0}ms");
+        string sourceStr = m.source == "hook" ? "🤖" : "📋";
+        Debug.Log($"[Latency] {sourceStr} Saved: STT={m.sttLatencyMs:F0}ms, TTFT={m.ttftMs:F0}ms, TTFB={m.ttfbAudioMs:F0}ms, E2E={m.e2eLatencyMs:F0}ms");
     }
 
-    [ContextMenu("Print Stats")]
-    public void PrintStatistics()
+    /// <summary>
+    /// Fallback: Extract measurements from debug log buffer when hooks fail
+    /// </summary>
+    [ContextMenu("Analyze Debug Logs")]
+    public void AnalyzeDebugLogs()
     {
-        if (allMeasurements.Count == 0)
+        if (!useDebugLogFallback)
         {
-            Debug.Log("[LatencyEvaluator] No measurements recorded yet.");
+            Debug.Log("[LatencyEvaluator] Debug log fallback disabled.");
             return;
         }
 
-        var sb = new StringBuilder();
-        sb.AppendLine("\n========== LATENCY EVALUATION SUMMARY ==========");
-        sb.AppendLine($"Total Interactions: {allMeasurements.Count}\n");
-
-        // TTFT - Time To First Token
-        var ttfts = allMeasurements.Where(m => m.ttftMs > 0).Select(m => m.ttftMs).ToList();
-        if (ttfts.Count > 0)
+        Debug.Log("[LatencyEvaluator] 📋 Analyzing debug logs for missed measurements...");
+        
+        if (!File.Exists(debugLogPath))
         {
-            sb.AppendLine("TTFT - User Input to First Token (ms):");
-            sb.AppendLine($"  Mean: {ttfts.Average():F2}");
-            sb.AppendLine($"  Median: {GetMedian(ttfts):F2}");
-            sb.AppendLine($"  StdDev: {GetStdDev(ttfts):F2}");
-            sb.AppendLine($"  Range: [{ttfts.Min():F2}, {ttfts.Max():F2}]\n");
+            Debug.LogWarning("[LatencyEvaluator] Debug log file not found!");
+            return;
         }
 
-        // TTFB - Time To First Audio
-        var ttfbs = allMeasurements.Where(m => m.ttfbAudioMs > 0).Select(m => m.ttfbAudioMs).ToList();
-        if (ttfbs.Count > 0)
+        string[] lines = File.ReadAllLines(debugLogPath);
+        int recovered = 0;
+
+        DateTime? userAnsweredTime = null;
+        DateTime? firstTokenTime = null;
+        DateTime? audioPlaybackTime = null;
+        DateTime? audioEndTime = null;
+        string testId = null;
+
+        foreach (string line in lines)
         {
-            sb.AppendLine("TTFB - User Input to First Audio (ms):");
-            sb.AppendLine($"  Mean: {ttfbs.Average():F2}");
-            sb.AppendLine($"  Median: {GetMedian(ttfbs):F2}");
-            sb.AppendLine($"  StdDev: {GetStdDev(ttfbs):F2}");
-            sb.AppendLine($"  Range: [{ttfbs.Min():F2}, {ttfbs.Max():F2}]\n");
+            if (string.IsNullOrWhiteSpace(line) || line.StartsWith("[Debug Log Buffer]"))
+                continue;
+
+            // Extract timestamp [HH:mm:ss.fff]
+            var timeMatch = Regex.Match(line, @"\[(\d{2}:\d{2}:\d{2}\.\d{3})\]");
+            if (!timeMatch.Success) continue;
+
+            string timeStr = timeMatch.Groups[1].Value;
+            DateTime time = DateTime.ParseExact(timeStr, "HH:mm:ss.fff", null);
+
+            // Detect events
+            if (line.Contains("User answered"))
+            {
+                if (userAnsweredTime.HasValue && firstTokenTime.HasValue)
+                {
+                    recovered += CreateMeasurementFromLogs(testId, userAnsweredTime.Value, firstTokenTime.Value, audioPlaybackTime, audioEndTime);
+                }
+                userAnsweredTime = time;
+                firstTokenTime = null;
+                audioPlaybackTime = null;
+                audioEndTime = null;
+                testId = $"LogRecover_{time:HHmmss_fff}";
+            }
+            else if (line.Contains("First Token") && !firstTokenTime.HasValue)
+            {
+                firstTokenTime = time;
+            }
+            else if (line.Contains("Audio playback") && !audioPlaybackTime.HasValue)
+            {
+                audioPlaybackTime = time;
+            }
+            else if (line.Contains("Audio playback completed"))
+            {
+                audioEndTime = time;
+            }
         }
 
-        // E2E Latency
-        var e2es = allMeasurements.Where(m => m.e2eLatencyMs > 0).Select(m => m.e2eLatencyMs).ToList();
-        if (e2es.Count > 0)
-        {
-            sb.AppendLine("E2E - User Input to Audio End (ms):");
-            sb.AppendLine($"  Mean: {e2es.Average():F2}");
-            sb.AppendLine($"  Median: {GetMedian(e2es):F2}");
-            sb.AppendLine($"  StdDev: {GetStdDev(e2es):F2}");
-            sb.AppendLine($"  Range: [{e2es.Min():F2}, {e2es.Max():F2}]\n");
-        }
+        // Save last measurement
+        if (userAnsweredTime.HasValue && firstTokenTime.HasValue)
+            recovered += CreateMeasurementFromLogs(testId, userAnsweredTime.Value, firstTokenTime.Value, audioPlaybackTime, audioEndTime);
 
-        sb.AppendLine($"CSV Results: {csvFilePath}");
-        sb.AppendLine("================================================\n");
-
-        Debug.Log(sb.ToString());
+        Debug.Log($"[LatencyEvaluator] ✅ Recovered {recovered} measurements from debug logs");
     }
 
-    private double GetMedian(List<double> values)
+    private int CreateMeasurementFromLogs(string testId, DateTime inputTime, DateTime tokenTime, DateTime? audioTime, DateTime? endTime)
     {
-        if (values.Count == 0) return 0;
-        values.Sort();
-        int count = values.Count;
-        return count % 2 == 0 ? (values[count / 2 - 1] + values[count / 2]) / 2 : values[count / 2];
+        var m = new LatencyMeasurement()
+        {
+            testId = testId,
+            timestamp = System.DateTimeOffset.Now.ToUnixTimeMilliseconds(),
+            source = "log"
+        };
+
+        m.ttftMs = (tokenTime - inputTime).TotalMilliseconds;
+        
+        if (audioTime.HasValue)
+            m.ttfbAudioMs = (audioTime.Value - inputTime).TotalMilliseconds;
+        
+        if (endTime.HasValue)
+            m.e2eLatencyMs = (endTime.Value - inputTime).TotalMilliseconds;
+
+        m.tokenCount = 0;
+        m.tokensPerSec = 0;
+
+        SaveMeasurement(m);
+        return 1;
     }
 
-    private double GetStdDev(List<double> values)
+    void OnDestroy()
     {
-        if (values.Count == 0) return 0;
-        double avg = values.Average();
-        double sumSquareDiff = values.Sum(x => (x - avg) * (x - avg));
-        return System.Math.Sqrt(sumSquareDiff / values.Count);
+        Application.logMessageReceived -= OnLogMessageReceived;
     }
 }

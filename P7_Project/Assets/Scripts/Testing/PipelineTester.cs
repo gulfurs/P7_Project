@@ -4,12 +4,24 @@ using System;
 /// <summary>
 /// Pipeline latency profiler - extracts timing from debug log events.
 /// Measures: ProcessUserAnswer → first token → first audio → audio end
+/// Supports both WindowsDictation and Whisper STT modes.
 /// </summary>
 public class PipelineTester : MonoBehaviour
 {
-    [Header("Settings")]
+    // STT Configuration
+    [Tooltip("STT mode: Windows Dictation or Whisper")]
+    public enum STTMode { WindowsDictation, Whisper }
+    public STTMode sttMode = STTMode.WindowsDictation;
+
+    [Header("Monitoring Settings")]
     public bool startMonitoringOnStart = true;
     public int maxInteractionsToLog = 0;
+    [Tooltip("Enable debug log-based fallback for missed measurements")]
+    public bool enableLogFallback = true;
+
+    [Header("Component References")]
+    public WindowsDictation windowsDictation;
+    public WhisperContinuous whisperContinuous;
 
     private bool isMonitoring = false;
     private int interactionCount = 0;
@@ -54,7 +66,21 @@ public class PipelineTester : MonoBehaviour
     {
         isMonitoring = false;
         Debug.Log("[PipelineTester] ⏹️ Stopped monitoring");
-        LatencyEvaluator.Instance.PrintStatistics();
+    }
+
+    [ContextMenu("Analyze Debug Logs (Fallback)")]
+    public void RecoverFromDebugLogs()
+    {
+        if (!enableLogFallback)
+        {
+            Debug.LogWarning("[PipelineTester] Log fallback is disabled!");
+            return;
+        }
+
+        Debug.Log("[PipelineTester] 📋 Running debug log analysis...");
+        if (LatencyEvaluator.Instance != null)
+            LatencyEvaluator.Instance.AnalyzeDebugLogs();
+        Debug.Log("[PipelineTester] ✅ Analysis complete. Check PrintStatistics for results.");
     }
 
     /// <summary>
@@ -135,11 +161,5 @@ public class PipelineTester : MonoBehaviour
         {
             StopMonitoring();
         }
-    }
-
-    [ContextMenu("Print Statistics")]
-    public void PrintStatistics()
-    {
-        LatencyEvaluator.Instance.PrintStatistics();
     }
 }
