@@ -10,82 +10,123 @@
     <!-- Vertical Navbar -->
     <nav class="sidebar">
         <a href="index.html" class="nav-link">Home</a>
-        <a href="worksheet.html" class="nav-link active">Worksheet</a>
-        <a href="#" class="nav-link">Placeholder</a>
+        <a href="worksheet.html" class="nav-link active">Documentation</a>
+        <a href="iterations.html" class="nav-link">Iterations</a>
     </nav>
 
     <div class="main">
         <!-- Header -->
         <header>
             <h1>Project Documentation</h1>
-            <p class="tagline">Development process and production timeline</p>
+            <p class="tagline">Development process and timeline</p>
         </header>
 
         <!-- Worksheet Content -->
         <div class="worksheet-content">
             
-            <!-- Section 1: Timeline -->
+            <!-- Development Process -->
             <section class="section-block">
                 <div class="section-text">
-                    <h3>Project Timeline</h3>
-                    <p>Our project follows a structured development cycle with clear milestones. The Gantt chart shows the timeline for all major development phases, from initial concept through final polish.</p>
-                    <p>Key phases include pre-production planning, core gameplay development, optimization, and testing phases.</p>
+                    <h3>Gantt Chart & Timeline</h3>
+                    <p>Project timeline showing all phases, milestones, and deliverables throughout the development cycle.</p>
+                    <p>Key phases include planning, prototyping, development, testing, and refinement.</p>
                 </div>
                 <div class="media-container">
-                    <img src="./images/gantt-diagram.png" alt="Project Gantt Chart">
+                    <img src="./assets/diagrams/gantt-chart.png" alt="Gantt Chart">
                 </div>
             </section>
 
-            <!-- Section 2: Architecture -->
+            <div class="full-width-section">
+                <h3>Sprint Planning & Backlog</h3>
+                <p><strong>Sprint 1:</strong> [Dates] - [Main goals and tasks]</p>
+                <p><strong>Sprint 2:</strong> [Dates] - [Main goals and tasks]</p>
+                <p><strong>Sprint 3:</strong> [Dates] - [Main goals and tasks]</p>
+            </div>
+
+            <div class="full-width-section">
+                <h3>Meeting Notes</h3>
+                <p><strong>Meeting 1 - [Date]:</strong> Discussed [topic], Decided [decision], Changed [what changed]</p>
+                <p><strong>Meeting 2 - [Date]:</strong> Discussed [topic], Decided [decision], Changed [what changed]</p>
+                <p><strong>Meeting 3 - [Date]:</strong> Discussed [topic], Decided [decision], Changed [what changed]</p>
+            </div>
+
+            <!-- Challenges & Solutions -->
+            <div class="full-width-section">
+                <h3>Challenges & Solutions</h3>
+                
+                <p style="margin-top: 20px;"><strong>Challenge 1:</strong> [Problem title]</p>
+                <ul>
+                    <li>What went wrong: [Description]</li>
+                    <li>Why it mattered: [Impact]</li>
+                    <li>Solution: [How we fixed it]</li>
+                    <li>Learning: [What we learned]</li>
+                </ul>
+
+                <p style="margin-top: 20px;"><strong>Challenge 2:</strong> [Problem title]</p>
+                <ul>
+                    <li>What went wrong: [Description]</li>
+                    <li>Why it mattered: [Impact]</li>
+                    <li>Solution: [How we fixed it]</li>
+                    <li>Learning: [What we learned]</li>
+                </ul>
+
+                <p style="margin-top: 20px;"><strong>Challenge 3:</strong> [Problem title]</p>
+                <ul>
+                    <li>What went wrong: [Description]</li>
+                    <li>Why it mattered: [Impact]</li>
+                    <li>Solution: [How we fixed it]</li>
+                    <li>Learning: [What we learned]</li>
+                </ul>
+            </div>
+
+            <!-- Testing & Evaluation -->
             <section class="section-block reverse">
                 <div class="section-text">
-                    <h3>System Architecture</h3>
-                    <p>The project is built with a modular architecture designed for scalability and maintainability. Each system is independently testable and can be extended without affecting other components.</p>
-                    <p>Core systems include game logic, input handling, graphics rendering, and audio management.</p>
+                    <h3>Testing & Results</h3>
+                    <p><strong>Test Examples:</strong></p>
+                    <ul>
+                        <li>Test 1: [Feature] - ✓ Pass</li>
+                        <li>Test 2: [Feature] - ✓ Pass</li>
+                        <li>Test 3: [Feature] - ✓ Pass</li>
+                    </ul>
+                    <p style="margin-top: 15px;"><strong>Performance:</strong> [FPS, memory, stability]</p>
+                    <p><strong>Feedback:</strong> [Peer/user feedback summary]</p>
                 </div>
                 <div class="media-container">
-                    <img src="./images/architecture-diagram.png" alt="System Architecture">
+                    <img src="./assets/results/system-working.gif" alt="System Working">
                 </div>
             </section>
 
-            <!-- Section 3: Development Process -->
-            <section class="section-block">
-                <div class="section-text">
-                    <h3>Development Process</h3>
-                    <p>We follow agile development practices with 2-week sprints. Each sprint includes planning, development, code review, and testing phases. Regular team meetings ensure alignment and quick resolution of blockers.</p>
-                    <p>We maintain a continuous integration pipeline with automated testing and builds.</p>
-                </div>
-                <div class="media-container">
-                    <img src="./images/workflow-diagram.png" alt="Development Workflow">
-                </div>
-            </section>
-
-            <!-- Section 4: Video Documentation -->
+            <!-- Reflection -->
             <div class="full-width-section">
-                <h3>Development Timelapse</h3>
+                <h3>Personal Reflection</h3>
+                <p><strong>What I Learned:</strong> [Technical and soft skills gained]</p>
+                <p><strong>Skills Improved:</strong> [Specific improvements in programming, Unity, problem-solving]</p>
+                <p><strong>What I'd Do Differently:</strong> [Honest assessment of what could be better]</p>
+                <p><strong>Professional Growth:</strong> [How this developed your engineering mindset and scientific responsibility]</p>
+            </div>
+
+            <!-- Demo Video -->
+            <div class="full-width-section">
+                <h3>Demo Video</h3>
                 <div class="media-container">
                     <video controls>
-                        <source src="./videos/development-timelapse.mp4" type="video/mp4">
+                        <source src="./assets/videos/demo.mp4" type="video/mp4">
                         Your browser does not support the video tag.
                     </video>
                 </div>
-                <p style="margin-top: 15px; color: #555;">Watch the full development process from initial concept to playable build. This timelapse spans the entire project lifecycle.</p>
-            </div>
-
-            <!-- Section 5: Key Decisions -->
-            <div class="full-width-section">
-                <h3>Key Technical Decisions</h3>
-                <p><strong>Engine Choice:</strong> Unity was selected for its flexibility, strong 2D/3D support, and extensive marketplace of tools and assets.</p>
-                <p><strong>Programming Language:</strong> C# provides excellent performance and tooling support within the Unity ecosystem.</p>
-                <p><strong>Version Control:</strong> Git with GitHub ensures collaborative development and maintains full project history.</p>
-                <p><strong>Testing Strategy:</strong> Combination of unit tests, integration tests, and manual QA ensures robust gameplay experience.</p>
+                <p style="margin-top: 15px; color: #555;">Full demonstration of the adaptive system in action.</p>
             </div>
 
         </div>
 
         <!-- Footer -->
         <footer>
-            <p>View on <a href="#">GitHub</a> • <a href="#">itch.io</a></p>
+            <p>View on 
+                <a href="#">GitHub</a>  
+                <a href="#">HuggingFace</a>
+                <a href="#">itch.io</a>
+            </p>
         </footer>
     </div>
 </body>
