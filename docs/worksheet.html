@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P7 Project - Worksheet</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Vertical Navbar -->
+    <nav class="sidebar">
+        <a href="index.html" class="nav-link">Home</a>
+        <a href="worksheet.html" class="nav-link active">Worksheet</a>
+        <a href="#" class="nav-link">Placeholder</a>
+    </nav>
+
+    <div class="main">
+        <!-- Header -->
+        <header>
+            <h1>Project Documentation</h1>
+            <p class="tagline">Development process and production timeline</p>
+        </header>
+
+        <!-- Worksheet Content -->
+        <div class="worksheet-content">
+            
+            <!-- Section 1: Timeline -->
+            <section class="section-block">
+                <div class="section-text">
+                    <h3>Project Timeline</h3>
+                    <p>Our project follows a structured development cycle with clear milestones. The Gantt chart shows the timeline for all major development phases, from initial concept through final polish.</p>
+                    <p>Key phases include pre-production planning, core gameplay development, optimization, and testing phases.</p>
+                </div>
+                <div class="media-container">
+                    <img src="./images/gantt-diagram.png" alt="Project Gantt Chart">
+                </div>
+            </section>
+
+            <!-- Section 2: Architecture -->
+            <section class="section-block reverse">
+                <div class="section-text">
+                    <h3>System Architecture</h3>
+                    <p>The project is built with a modular architecture designed for scalability and maintainability. Each system is independently testable and can be extended without affecting other components.</p>
+                    <p>Core systems include game logic, input handling, graphics rendering, and audio management.</p>
+                </div>
+                <div class="media-container">
+                    <img src="./images/architecture-diagram.png" alt="System Architecture">
+                </div>
+            </section>
+
+            <!-- Section 3: Development Process -->
+            <section class="section-block">
+                <div class="section-text">
+                    <h3>Development Process</h3>
+                    <p>We follow agile development practices with 2-week sprints. Each sprint includes planning, development, code review, and testing phases. Regular team meetings ensure alignment and quick resolution of blockers.</p>
+                    <p>We maintain a continuous integration pipeline with automated testing and builds.</p>
+                </div>
+                <div class="media-container">
+                    <img src="./images/workflow-diagram.png" alt="Development Workflow">
+                </div>
+            </section>
+
+            <!-- Section 4: Video Documentation -->
+            <div class="full-width-section">
+                <h3>Development Timelapse</h3>
+                <div class="media-container">
+                    <video controls>
+                        <source src="./videos/development-timelapse.mp4" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                </div>
+                <p style="margin-top: 15px; color: #555;">Watch the full development process from initial concept to playable build. This timelapse spans the entire project lifecycle.</p>
+            </div>
+
+            <!-- Section 5: Key Decisions -->
+            <div class="full-width-section">
+                <h3>Key Technical Decisions</h3>
+                <p><strong>Engine Choice:</strong> Unity was selected for its flexibility, strong 2D/3D support, and extensive marketplace of tools and assets.</p>
+                <p><strong>Programming Language:</strong> C# provides excellent performance and tooling support within the Unity ecosystem.</p>
+                <p><strong>Version Control:</strong> Git with GitHub ensures collaborative development and maintains full project history.</p>
+                <p><strong>Testing Strategy:</strong> Combination of unit tests, integration tests, and manual QA ensures robust gameplay experience.</p>
+            </div>
+
+        </div>
+
+        <!-- Footer -->
+        <footer>
+            <p>View on <a href="#">GitHub</a> • <a href="#">itch.io</a></p>
+        </footer>
+    </div>
+</body>
+</html>
