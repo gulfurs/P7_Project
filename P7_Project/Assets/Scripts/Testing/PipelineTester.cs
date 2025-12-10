@@ -25,15 +25,6 @@ public class PipelineTester : MonoBehaviour
 
     private bool isMonitoring = false;
     private int interactionCount = 0;
-    
-    // Current interaction state
-    private bool isTrackingInteraction = false;
-    private DateTime userInputLogTime; // When "📢 User answered" was logged
-    private DateTime firstTokenLogTime; // When first LLM output appeared
-    private DateTime firstAudioLogTime; // When "[TTS] Audio playback starting" was logged
-    private DateTime lastAudioEndLogTime; // When "[TTS] ✅ Audio playback completed" was logged
-    private string currentUserInput = "";
-    private int tokenCount = 0;
 
     void Start()
     {
@@ -90,14 +81,6 @@ public class PipelineTester : MonoBehaviour
     {
         if (!isMonitoring) return;
 
-        isTrackingInteraction = true;
-        userInputLogTime = DateTime.Now;
-        currentUserInput = userText;
-        firstTokenLogTime = default;
-        firstAudioLogTime = default;
-        lastAudioEndLogTime = default;
-        tokenCount = 0;
-
         if (LatencyEvaluator.Instance != null)
             LatencyEvaluator.Instance.MarkInputSent();
 
@@ -109,15 +92,10 @@ public class PipelineTester : MonoBehaviour
     /// </summary>
     public void OnFirstTokenAppeared(string tokenText)
     {
-        if (!isMonitoring || !isTrackingInteraction) return;
-
-        firstTokenLogTime = DateTime.Now;
+        if (!isMonitoring) return;
         
         if (LatencyEvaluator.Instance != null)
             LatencyEvaluator.Instance.MarkFirstToken();
-
-        double latencyMs = (firstTokenLogTime - userInputLogTime).TotalMilliseconds;
-        Debug.Log($"[PipelineTester] 🎯 TTFT (first token): {latencyMs:F2}ms");
     }
 
     /// <summary>
@@ -125,15 +103,10 @@ public class PipelineTester : MonoBehaviour
     /// </summary>
     public void OnAudioPlaybackStarted()
     {
-        if (!isMonitoring || !isTrackingInteraction) return;
-
-        firstAudioLogTime = DateTime.Now;
+        if (!isMonitoring) return;
         
         if (LatencyEvaluator.Instance != null)
             LatencyEvaluator.Instance.MarkFirstAudio();
-
-        double latencyMs = (firstAudioLogTime - userInputLogTime).TotalMilliseconds;
-        Debug.Log($"[PipelineTester] 🔊 TTFB (first audio): {latencyMs:F2}ms");
     }
 
     /// <summary>
@@ -141,20 +114,13 @@ public class PipelineTester : MonoBehaviour
     /// </summary>
     public void OnAllAudioPlaybackEnded(int tokenCountInResponse, double totalAudioDurationMs)
     {
-        if (!isMonitoring || !isTrackingInteraction) return;
-
-        lastAudioEndLogTime = DateTime.Now;
+        if (!isMonitoring) return;
         
-        // Forward to new LatencyEvaluator system if available
         if (LatencyEvaluator.Instance != null)
-        {
             LatencyEvaluator.Instance.MarkInteractionEnd(tokenCountInResponse);
-        }
 
-        Debug.Log($"[PipelineTester] Interaction Ended. Tokens: {tokenCountInResponse}");
-
-        // Reset
-        isTrackingInteraction = false;
+        interactionCount++;
+        Debug.Log($"[PipelineTester] Interaction #{interactionCount} ended. Tokens: {tokenCountInResponse}");
 
         // Check if we should stop
         if (maxInteractionsToLog > 0 && interactionCount >= maxInteractionsToLog)

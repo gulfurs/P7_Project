@@ -6,7 +6,7 @@ public class WhisperContinuous : MonoBehaviour
 {
     [Header("Whisper Settings")]
     public string modelFileName = "ggml-tiny.bin";
-    public float chunkDuration = 3f; // keep this small (2–3s) for responsive STT
+    public float chunkDuration = 3f; // keep this small (2ï¿½3s) for responsive STT
     public AudioSource audioSource;
 
     [Header("Input Field")]
@@ -17,7 +17,7 @@ public class WhisperContinuous : MonoBehaviour
 
     [Header("Sentence Detection")]
     [Tooltip("Seconds after last speech before we send the final text to NPCChatInstance.Send()")]
-    public float sentenceEndDelay = 3f;        // 3–4 seconds as requested
+    public float sentenceEndDelay = 3f;        // 3ï¿½4 seconds as requested
 
     [Tooltip("Hard limit for how long a single answer can last (seconds). 0 = no limit.")]
     public float maxUtteranceDuration = 60f;   // e.g. 60 seconds total per answer
@@ -150,7 +150,7 @@ public class WhisperContinuous : MonoBehaviour
             // 2) Skip things like [BLANK_AUDIO], [Chirping], [Noise], etc.
             if (string.IsNullOrWhiteSpace(trimmedResult) || IsBracketOnlyToken(trimmedResult))
             {
-                // Do NOT update lastSpeechTime here – this counts as silence.
+                // Do NOT update lastSpeechTime here ï¿½ this counts as silence.
                 continue;
             }
 
@@ -169,6 +169,10 @@ public class WhisperContinuous : MonoBehaviour
             {
                 utteranceStartTime = Time.time;
                 currentTranscript = trimmedResult;
+                
+                // Hook for latency profiler - Speech Start (STT)
+                if (LatencyEvaluator.Instance != null)
+                    LatencyEvaluator.Instance.MarkSpeechStart();
             }
             else
             {
@@ -223,6 +227,10 @@ public class WhisperContinuous : MonoBehaviour
         }
 
         Debug.Log($"[Whisper] Sentence end detected. Final transcript: {currentTranscript}");
+
+        // Hook for latency profiler - Input Sent (STT complete)
+        if (LatencyEvaluator.Instance != null)
+            LatencyEvaluator.Instance.MarkInputSent();
 
         // Put final text into NPCChatInstance's input and call Send()
         if (npcChatInstance != null && npcChatInstance.userInput != null)

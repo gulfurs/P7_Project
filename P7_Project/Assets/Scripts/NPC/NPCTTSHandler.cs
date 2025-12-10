@@ -24,6 +24,8 @@ public class NPCTTSHandler : MonoBehaviour
     private bool isGenerating = false;
     private bool isCurrentlyPlaying = false;
     private Coroutine playbackCoroutine = null;
+    private bool hasNotifiedFirstAudio = false;
+    private int totalTokensThisInteraction = 0;
 
     [Serializable]
     private class TTSRequest
@@ -106,6 +108,9 @@ public class NPCTTSHandler : MonoBehaviour
     {
         if (string.IsNullOrEmpty(text)) return;
 
+        // Track tokens (rough estimate: words)
+        totalTokensThisInteraction += text.Split(' ').Length;
+
         var request = new TTSRequest
         {
             text = text,
@@ -186,6 +191,14 @@ public class NPCTTSHandler : MonoBehaviour
                     if (hasGlobalStarted)
                     {
                         hasGlobalStarted = false;
+                        hasNotifiedFirstAudio = false; // Reset for next interaction
+                        
+                        // Hook for PipelineTester - All Audio Ended
+                        var pipelineTester = FindObjectOfType<PipelineTester>();
+                        if (pipelineTester != null)
+                            pipelineTester.OnAllAudioPlaybackEnded(totalTokensThisInteraction, 0);
+                        
+                        totalTokensThisInteraction = 0; // Reset
                         OnGlobalPlaybackEnd?.Invoke();
                     }
 
@@ -257,8 +270,18 @@ public class NPCTTSHandler : MonoBehaviour
         }
 
         // Hook for latency profiler - First Audio
-        if (LatencyEvaluator.Instance != null)
-            LatencyEvaluator.Instance.MarkFirstAudio();
+        if (!hasNotifiedFirstAudio)
+        {
+            hasNotifiedFirstAudio = true;
+            
+            if (LatencyEvaluator.Instance != null)
+                LatencyEvaluator.Instance.MarkFirstAudio();
+            
+            // Hook for PipelineTester
+            var pipelineTester = FindObjectOfType<PipelineTester>();
+            if (pipelineTester != null)
+                pipelineTester.OnAudioPlaybackStarted();
+        }
 
         Debug.Log($"[TTS] 🔊 Playing audio clip: {clip.name} (length: {clip.length}s, samples: {clip.samples})");
 

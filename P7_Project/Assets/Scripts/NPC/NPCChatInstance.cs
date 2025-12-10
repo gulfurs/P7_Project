@@ -185,6 +185,11 @@ public class NPCChatInstance : MonoBehaviour
         if (string.IsNullOrWhiteSpace(userText) || npcProfile == null || ollamaClient == null) 
             return;
 
+        // Hook for PipelineTester - User Input Detected
+        var pipelineTester = FindObjectOfType<PipelineTester>();
+        if (pipelineTester != null)
+            pipelineTester.OnUserInputDetected(userText);
+
         // Notify DialogueManager
         if (DialogueManager.Instance != null)
             DialogueManager.Instance.OnUserAnswered(userText);
@@ -305,6 +310,7 @@ public class NPCChatInstance : MonoBehaviour
         if (isCurrentlySpeaking) return;
         
         isCurrentlySpeaking = true;
+        hasReceivedFirstToken = false; // Reset for new response
 
     cts?.Cancel();
     cts?.Dispose();
@@ -371,6 +377,8 @@ public class NPCChatInstance : MonoBehaviour
     /// <summary>
     /// Process incoming tokens for metadata and TTS
     /// </summary>
+    private bool hasReceivedFirstToken = false;
+
     private void ProcessToken(
         string token,
         StringBuilder ttsBuffer,
@@ -379,8 +387,18 @@ public class NPCChatInstance : MonoBehaviour
         bool shouldStreamDisplay)
     {
         // Hook for latency profiler - First Token
-        if (LatencyEvaluator.Instance != null)
-            LatencyEvaluator.Instance.MarkFirstToken();
+        if (!hasReceivedFirstToken)
+        {
+            hasReceivedFirstToken = true;
+            
+            if (LatencyEvaluator.Instance != null)
+                LatencyEvaluator.Instance.MarkFirstToken();
+            
+            // Hook for PipelineTester
+            var pipelineTester = FindObjectOfType<PipelineTester>();
+            if (pipelineTester != null)
+                pipelineTester.OnFirstTokenAppeared(token);
+        }
 
         lastResponseTokenCount++;
 
