@@ -108,3 +108,4 @@ P7_Project/Assets/Plugins/x86_64/cusolverMg64_13.dll.meta
 P7_Project/Assets/Plugins/x86_64/curand64_10.dll.meta
 P7_Project/Assets/Plugins/x86_64/cudart64_13.dll.meta
 P7_Project/Assets/Plugins/x86_64/cublas64_13.dll.meta
+*.tex
