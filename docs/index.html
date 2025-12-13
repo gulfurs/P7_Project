@@ -30,19 +30,71 @@
             <!-- Left: Description -->
             <section class="description">
                 <h2>Introduction</h2>
-                <p>Can an local LLM-driven multi-agent system that facilitates natural conversation
-                     be perceived as natural and attentive in a multi-party interview setting 
-                     while maintaining acceptable latency constraints?</p>
-                <p>Using Local LLM, the agents response is dynamically generated and adaptive to the users input. 
-                    The NVB animationsis also adaptive according to their response</p>
-                <p>To adress conversational AI latency and LLM social blindness in multi-part dynamics</p>
-                
+                <p>
+                Can a real-time, locally deployed LLM-driven multi-agent system support natural 
+                conversation in a multi-party interview setting while remaining attentive under 
+                realistic latency constraints?
+                </p>
+
+                <p>
+                This project explores a Unity-based interview simulation where multiple AI agents 
+                generate adaptive dialogue and synchronized non-verbal behaviors such as gaze, 
+                gesture timing, and attention signaling. All components—including speech recognition, 
+                language generation, and speech synthesis—run locally to ensure predictable timing 
+                and user privacy.
+                </p>
+
+                <p>
+                The goal is to address common challenges in conversational AI, including response 
+                latency and limited social awareness in multi-party dialogue, by tightly coupling 
+                verbal
+                </p>
+
                 <h3>Problem Definition</h3>
-                <p><strong>Original Problem:</strong> Local pipeline of STT → LLM → TTS with dynamic avatars, trying not to break conversational grounding</p>
-                <p><strong>Requirements:</strong> Under x00 end-to-end latency; context-aware avatars + NVB</p>
-                <p><strong>Constraints:</strong> Current State of the art, STT speed-accuracy tradeoffs; 
-                    LLM understanding of human dynamics; 
-                    TTS expressiveness / latency, </p>
+                <p>
+<strong>Context:</strong><br>
+Despite recent advances in large language models, embodied conversational agents 
+still struggle to support natural multi-party dialogue. In interview-like settings, 
+AI avatars often fail to coordinate turn-taking, attention, and non-verbal behavior, 
+resulting in conversations that feel delayed, socially unaware, or unnatural.
+</p>
+
+<p>
+<strong>Original Problem:</strong><br>
+How to design a locally deployable speech-based interaction pipeline 
+(STT → LLM → TTS) that supports multi-agent conversation without breaking 
+conversational grounding due to latency, turn collisions, or misaligned 
+non-verbal behavior.
+</p>
+
+<p>
+<strong>Research Problem:</strong><br>
+Can a real-time, local LLM-driven multi-agent interview system be perceived as 
+attentive and natural in a multi-party setting while operating under latency 
+constraints that exceed ideal human turn-taking thresholds?
+</p>
+
+<p>
+<strong>Requirements:</strong>
+</p>
+    <ul>
+        <li>End-to-end system latency must remain within accepted HCI limits 
+            (&lt; 10 seconds) and be temporally predictable</li>
+        <li>Agents must coordinate turn-taking without overlapping speech</li>
+        <li>Verbal responses must be synchronized with non-verbal cues 
+            (gaze, gesture, attention)</li>
+        <li>All components must run locally to ensure timing control and user privacy</li>
+    </ul>
+
+    <p>
+    <strong>Constraints:</strong>
+    </p>
+    <ul>
+        <li>Speech recognition accuracy vs. responsiveness trade-offs (STT)</li>
+        <li>LLM generation latency and limited social reasoning in multi-party dialogue</li>
+        <li>Text-to-speech expressiveness versus real-time synthesis latency</li>
+        <li>Computational limits of running all models on-device</li>
+    </ul>
 
                 <h3>System Design</h3>
                 <p><strong>Architecture:</strong> [Brief system architecture overview]</p>
