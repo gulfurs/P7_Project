@@ -14,7 +14,10 @@
 <body>
     <nav class="sidebar" aria-label="Main navigation">
     <div class="sidebar-brand">
-        <a class="brand" href="index.html">FirstImpress Lab</a>
+    <a class="brand" href="index.html">
+        <img class="brand-logo" src="./images/FI.png" alt="FirstImpress Lab logo">
+        <span>FirstImpress Lab</span>
+    </a>
     </div>
 
 
@@ -49,18 +52,36 @@
                     <li><a href="#Meeting">Meeting Notes</a></li>
                     <li><a href="#Challenges & Solutions">Challenge & Solutions</a></li>
                     <li><a href="#Testing">Testing & Results</a></li>
-                    <li><a href="#PersonalReflection">Personal Reflection</a></li>
+                    <li><a href="#PersonalReflection">Team Reflection</a></li>
                 </ul>
             </nav>
         </aside>
 
         <div class="worksheet-content">
-            
+             <section class="section-block reverse">
+                <div class="section-text">
+                    <h3 id="Kanban">Idea generation</h3>
+                    <p>
+                        the early idea-generation phase was done through a broad design space of research interests to a set of concrete concept directions. Starting from key thematic areas such as conversational AI, multi-agent systems, embodied interaction, and generative models, the ideas branch into multiple speculative scenarios that explore how social pragmatic signals—like turn-taking, interruption, persuasion, and group dynamics—could be made visible and experiential through AI avatars. The figure captures how diverse concepts (e.g., interviews, dilemmas, persuasion games, creative collaboration, and historical simulations) emerged as alternative ways to investigate the same underlying research question, supporting an exploratory and divergent design process before narrowing toward a final project direction
+                        ️<br>
+                        <br>
+                        see file here:
+                        <a href="./meetings/Intial Problem statement foreslag_.pdf" download>
+                            Idea generation document (PDF)
+                </a>
+                    </p>
+                </div>
+                <div class="media-container">
+                    <img src="./images/idea generation.png" alt="Idea generation">
+                </div>
+            </section>
+
             <section class="section-block">
                 <div class="section-text">
                     <h3 id="GanttChart">Gantt Chart & Timeline</h3>
-                    <p>Project timeline showing all phases, milestones, and deliverables throughout the development cycle.</p>
-                    <p>Key phases include planning, prototyping, development, testing, and refinement.</p>
+                    <p>
+                        In this project, the Gantt chart was used to structure and communicate the progression of our work from initial problem formulation to final delivery. The chart illustrates how phases such as literature study, concept development, implementation, testing, and report writing overlapped rather than occurring strictly sequentially. This shows the iterative nature of the project, where technical development, evaluation, and documentation informed each other continuously, ensuring steady progress and alignment with project deadlines.
+                    </p>
                 </div>
                 <div class="media-container">
                     <img src="./images/Ganttt.png" alt="Gantt Chart">
@@ -70,8 +91,11 @@
             <section class="section-block reverse">
                 <div class="section-text">
                     <h3 id="Kanban">Kanban Board</h3>
-                    <p>Task management and workflow visualization using a Kanban board.</p>
-                    <p>Tracks tasks through "To Do", "In Progress", and "Done" stages to ensure steady progress.</p>
+                    <p>
+                        A Kanban board was used to support the day-to-day management of tasks throughout the project.
+                        It provided a visual overview of the current status of various tasks, helping the team prioritize work and maintain focus on key deliverables.
+                        This approach was particularly useful in an development process and writting phase, beacuse it allows the team to quickly adapt priorities, manage parallel work, and maintain a clear overview of individual and shared responsibilities.
+                    </p>
                 </div>
                 <div class="media-container">
                     <img src="./images/TrelloSnapshot.png" alt="Kanban Board">
@@ -80,69 +104,121 @@
 
             <div class="full-width-section">
                 <h3 id="Sprint">Sprint Planning & Backlog</h3>
-                <p><strong>Sprint 1:</strong> [Dates] - [Main goals and tasks]</p>
-                <p><strong>Sprint 2:</strong> [Dates] - [Main goals and tasks]</p>
-                <p><strong>Sprint 3:</strong> [Dates] - [Main goals and tasks]</p>
+                <p>
+                    While an agile approach was chosen to frame the overall project, the defined sprints primarily served as focus periods rather than strict boundaries. Work such as implementation, testing, and refinement occurred across multiple sprints as needed. This flexible structure allowed the team to adapt to emerging insights and technical challenges while still maintaining a clear project overview and progression.
+                </p>
+                <br>
+                <p><strong>The Sprints</strong></p>
+                <p><strong>Sprint 1:</strong> [08/09 - 06/10] - Through this sprint the goal was to cover the project startup, problem formulation, and lastly an extensive literature study. The focus was on defining the research question, understanding relevant theory, and establishing a solid conceptual and methodological foundation for the project. </p>
+                <br>
+                <p><strong>Sprint 2:</strong> [29/09 - 27/10] - During this sprint, insights from the literature were translated into concrete system concepts and design decisions. This included defining the system architecture, interaction flow, and evaluation approach, while iteratively refining the project scope.</p>
+                <br>
+                <p><strong>Sprint 3:</strong> [06/10 - 17/11] - The implementation sprint focused on developing the core system, including speech pipelines, agent behavior, and interaction logic. Development was iterative, with continuous testing and adjustments based on technical constraints and emerging findings.</p>
+                <br>
+                <p><strong>Sprint 4:</strong> [17/11 - 01/12] - This sprint concentrated on system testing, evaluation design, and data collection. The team worked on refining the evaluation methodology, conducting pilot tests, and gathering initial user feedback to inform final adjustments.</p>
+                <br>
+                <p><strong>Sprint 5:</strong> [01/12 - 15/12] - The final sprint was dedicated to analyzing evaluation data, drawing conclusions, and compiling the project report. The focus was on synthesizing findings, reflecting on the development process, and articulating lessons learned and future directions.</p>
             </div>
 
             <div class="full-width-section">
-                <h3 id="Meeting">Meeting Notes</h3>
-                <p><strong>Meeting 1 - [Date]:</strong> Discussed [topic], Decided [decision], Changed [what changed]</p>
-                <p><strong>Meeting 2 - [Date]:</strong> Discussed [topic], Decided [decision], Changed [what changed]</p>
-                <p><strong>Meeting 3 - [Date]:</strong> Discussed [topic], Decided [decision], Changed [what changed]</p>
+            <h3 id="Meeting">Meeting Notes</h3>
+            <ul>
+                <li>
+                <a href="./meetings/Møde 17-09-25.pdf" download>
+                    Meeting 1 (PDF)
+                </a>
+                <p>
+                    Focused on early concept development and methodological direction. The discussion covered realism versus Turing-test–style evaluation, the importance of user perception and suspension of disbelief, and defining a feasible vertical slice with clear evaluation goals and local deployment considerations. 
+                </p>
+                </li>
+                <li>
+                <a href="./meetings/Møde 01-10-25.pdf" download>
+                    Meeting 2 (PDF)
+                </a>
+                <p>
+                    Centered on technical feasibility and system architecture. Key topics included local versus cloud-based speech pipelines, latency as a critical constraint, limitations of current TTS solutions, and exploration of alternative models and infrastructure to support real-time embodied interaction. 
+                </p>
+                </li>
+                <li>
+                <a href="./meetings/Møde 02-12-25.pdf" download>
+                    Meeting 3 (PDF)
+                </a>
+                <p>
+                    Focused on evaluation design and academic rigor. The meeting addressed hypothesis structure, participant numbers, quantitative and qualitative measures (including reliability and correlation), latency-aware perception metrics, and ensuring methodological consistency for examination requirements. 
+                </p>
+                </li>
+            </ul>
             </div>
+
 
             <div class="full-width-section">
                 <h3 id="Challenges">Challenges & Solutions</h3>
-                
-                <p style="margin-top: 20px;"><strong>Challenge 1:</strong> [Problem title]</p>
+                <p>
+                    Many challenges were faced during the project development, here is a summary of the most important ones and how they were solved:
+                </p>
+
+                <p style="margin-top: 20px;"><strong>Challenge 1:</strong> Enable GPU support for Whisper / Lama</p>
                 <ul>
-                    <li>What went wrong: [Description]</li>
-                    <li>Why it mattered: [Impact]</li>
-                    <li>Solution: [How we fixed it]</li>
-                    <li>Learning: [What we learned]</li>
+                    <li>What went wrong: To be able to run, Whisper / Lama need to run on stronger computers</li>
+                    <li>Why it mattered: High accuracy - needed to run system</li>
+                    <li>Solution: Bought new graphic cards for strong PC, and used windows ditaction on slower PC's</li>
+                    <li>Learning: Implement user fallback mechanisms, and implement different solutions for diverse specs</li>
                 </ul>
 
-                <p style="margin-top: 20px;"><strong>Challenge 2:</strong> [Problem title]</p>
+                <p style="margin-top: 20px;"><strong>Challenge 2:</strong> Turn taking logic - speaker priority</p>
                 <ul>
-                    <li>What went wrong: [Description]</li>
-                    <li>Why it mattered: [Impact]</li>
-                    <li>Solution: [How we fixed it]</li>
-                    <li>Learning: [What we learned]</li>
+                    <li>What went wrong: Sometimes both talked at the same time, and it having problem with who turns it was</li>
+                    <li>Why it mattered: Balanced amount of answers from both ECA's</li>
+                    <li>Solution: Explicit turn-taking phases</li>
+                    <li>Learning: Sometimes the simple solutions is the way to go</li>
                 </ul>
 
-                <p style="margin-top: 20px;"><strong>Challenge 3:</strong> [Problem title]</p>
+                <p style="margin-top: 20px;"><strong>Challenge 3:</strong> User autonomy</p>
                 <ul>
-                    <li>What went wrong: [Description]</li>
-                    <li>Why it mattered: [Impact]</li>
-                    <li>Solution: [How we fixed it]</li>
-                    <li>Learning: [What we learned]</li>
+                    <li>What went wrong: The user of the system had to many options for camera-controls, which lead to inconsitent camera movement</li>
+                    <li>Why it mattered: They needed to look at the npc, to simulate at real life conversation</li>
+                    <li>Solution: Static Camera</li>
+                    <li>Learning: Focus on what is being research</li>
+                </ul>
+
+                <p style="margin-top: 20px;"><strong>Challenge 4:</strong> Slow TTS</p>
+                <ul>
+                    <li>What went wrong: It generated the whole prompt in go, which lead to it taking to long</li>
+                    <li>Why it mattered: Latency and therefore ruined immersion</li>
+                    <li>Solution: Sentence level chunking</li>
+                    <li>Learning: optimization</li>
+                </ul>
+
+                <p style="margin-top: 20px;"><strong>Challenge 5:</strong> LLM Think Mode</p>
+                <ul>
+                    <li>What went wrong: It took to long to think, and it showed its thoughts in the prompt</li>
+                    <li>Why it mattered: Went to slow, and therefore ruined immersion</li>
+                    <li>Solution: Sacrifies intelligence for speed, control and accuracy</li>
+                    <li>Learning: Found Model without chain of thoughts</li>
                 </ul>
             </div>
 
-            <section class="section-block reverse">
-                <div class="section-text">
+            <section class="full-width-section">
                     <h3 id="Testing">Testing & Results</h3>
-                    <p><strong>Test Examples:</strong></p>
+                    <p><strong>Tests</strong></p>
                     <ul>
-                        <li>Test 1: [Feature] - ✓ Pass</li>
-                        <li>Test 2: [Feature] - ✓ Pass</li>
-                        <li>Test 3: [Feature] - ✓ Pass</li>
+                        <li>Test 1: Latency - 2,39 S</li>
+                        <li>Test 2: Safety evaluation - passed </li>
+                        <li>Test 3: ASAQ & Goodspeed - attentiveness mdn = 6.0 </li>
                     </ul>
-                    <p style="margin-top: 15px;"><strong>Performance:</strong> [FPS, memory, stability]</p>
-                    <p><strong>Feedback:</strong> [Peer/user feedback summary]</p>
-                </div>
-                <div class="media-container">
-                    <img src="./assets/results/system-working.gif" alt="System Working">
-                </div>
+                    <p style="margin-top: 15px;"><strong>Performance:</strong> FPS: 370 - 500, memory: 3,4 GB</p>
+                    <p><strong>Feedback:</strong> "I felt that they not just heard what I said, but also understood it and could put other words on it as well." </p>
             </section>
 
             <div class="full-width-section">
-                <h3 id="PersonalReflection">Personal Reflection</h3>
-                <p><strong>What I Learned:</strong> [Technical and soft skills gained]</p>
-                <p><strong>Skills Improved:</strong> [Specific improvements in programming, Unity, problem-solving]</p>
-                <p><strong>What I'd Do Differently:</strong> [Honest assessment of what could be better]</p>
-                <p><strong>Professional Growth:</strong> [How this developed your engineering mindset and scientific responsibility]</p>
+                <h3 id="PersonalReflection">Team Reflection</h3>
+                <p><strong>What We Learned through this project:</strong> Through this project, we learned how complex it is to design conversational AI systems that feel socially natural rather than merely functional. We gained experience integrating speech recognition, large language models, text-to-speech synthesis, and non-verbal behaviour into a single real-time pipeline. Beyond the technical aspects, we learned the importance of grounding theory, turn-taking pragmatics, and user perception when evaluating human–AI interaction. The project also highlighted how interdisciplinary work—combining HCI theory, AI engineering, and user studies—is essential when building embodied conversational agents.</p>
+                <br>
+                <p><strong>Skills Improved:</strong> We significantly improved our programming skills in Unity and C#, particularly in managing real-time pipelines, asynchronous processing, and native plugin integration. Our understanding of deploying and optimizing local LLMs, ASR, and TTS systems deepened, especially regarding latency trade-offs and streaming architectures. Additionally, we strengthened our problem-solving abilities by debugging timing issues, coordinating multi-agent turn-taking, and aligning verbal output with non-verbal animations. On a softer level, we improved collaboration, documentation, and research communication by iterating between implementation, evaluation, and academic writing.</p>
+                <br>
+                <p><strong>What we Do Differently:</strong> If we were to redo the project, we would introduce baseline comparison conditions earlier, such as a single-agent or text-only version, to better isolate the effect of multi-agent coordination. We would also allocate more time to refining non-verbal behaviour, as user feedback showed that gesture and movement quality still lagged behind attentiveness and verbal coherence. Furthermore, we would plan for a more diverse participant sample beyond university students and incorporate additional validated presence measures to strengthen the reliability of the evaluation.</p>
+                <br>
+                <p><strong>Professional Growth:</strong> This project contributed significantly to our professional growth by shifting our mindset from building systems that merely “work” to systems that are responsible, interpretable, and empirically evaluated. We developed a stronger engineering mindset focused on trade-offs, such as balancing computational performance, latency, privacy, and user perception. Conducting a structured user study and safety evaluation reinforced our sense of scientific responsibility, emphasizing transparency, ethical considerations, and methodological rigor when developing AI systems intended for real-world use.</p>
             </div>
 
         </div>
