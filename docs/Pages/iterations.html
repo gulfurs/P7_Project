@@ -4,13 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>P7 Project - Iterations</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="../style.css">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-    <script src="theme-toggle.js" defer></script>
+    <script src="../javascript/theme-toggle.js"></script>
 </body>
 </html>
 
@@ -19,17 +19,18 @@
     <nav class="sidebar" aria-label="Main navigation">
     <div class="sidebar-brand">
     <a class="brand" href="index.html">
-        <img class="brand-logo" src="./images/FI.png" alt="FirstImpress Lab logo">
+        <img class="brand-logo" src="../images/FI.png" alt="FirstImpress Lab logo">
         <span>FirstImpress Lab</span>
     </a>
     </div>
 
     <div class="sidebar-box sidebar-links">
-        <a href="index.html" class="nav-link">Home</a>
-        <a href="worksheet.html" class="nav-link">Documentation</a>
-        <a href="iterations.html" class="nav-link active">Iterations</a>
-        <a href="technical.html" class="nav-link">Technical</a>
+    <a href="../index.html" class="nav-link">Home</a>
+    <a href="worksheet.html" class="nav-link">Documentation</a>
+    <a href="iterations.html" class="nav-link active">Iterations</a>
+    <a href="technical.html" class="nav-link">Technical</a>
     </div>
+
 
     <div class="sidebar-box theme-box">
         <div class="theme-label">Change mode</div>
@@ -65,7 +66,7 @@
                     <p><strong>Issues:</strong> Missing avartars, not simulating real life scenario</p>
                 </div>
                 <div class="media-container">
-                    <img src="./images/First-setup.png" alt="First Version Screenshot">
+                    <img src="../images/First-setup.png" alt="First Version Screenshot">
                 </div>
             </section>
 
@@ -77,7 +78,7 @@
                     <p><strong>Result:</strong> More life like</p>
                 </div>
                 <div class="media-container">
-                    <img src="./images/Setup_with_char.png" alt="Second Version Screenshot">
+                    <img src="../images/Setup_with_char.png" alt="Second Version Screenshot">
                 </div>
             </section>
 
@@ -89,17 +90,30 @@
                     <p><strong>Result:</strong> Simulated Job interview</p>
                 </div>
                 <div class="media-container">
-                    <img src="./images/Originallayout.png" alt="Final Version Screenshot">
+                    <img src="../images/Originallayout.png" alt="Final Version Screenshot">
                 </div>
             </section>
         </div>
 
         <footer>
-            <p>View on 
-                <a href="https://github.com/gulfurs/P7_Project">GitHub</a>  
-                <a href="https://huggingface.co/MEDSOE">HuggingFace</a>
-                <a href="#">itch.io</a>
-            </p>
+            <div class="footer-title">Finds on:</div>
+
+            <div class="footer-links" aria-label="External links">
+                <a class="footer-item" href="https://github.com/gulfurs/P7_Project" target="_blank" rel="noopener">
+                <div class="footer-icon" aria-hidden="true">
+                    <img class="gh-dark" src="../FooterLogos/github-mark-white.png" alt="">
+                    <img class="gh-light" src="../FooterLogos/github-mark.png" alt="">
+                </div>
+                <div class="footer-label">GitHub</div>
+                </a>
+
+                <a class="footer-item" href="https://huggingface.co/MEDSOE" target="_blank" rel="noopener">
+                <div class="footer-icon" aria-hidden="true">
+                    <img src="../FooterLogos/huggingface-2.svg" alt="">
+                </div>
+                <div class="footer-label">HuggingFace</div>
+                </a>
+            </div>
         </footer>
     </div>
 </body>

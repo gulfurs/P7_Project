@@ -4,29 +4,31 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Technical Details - P7 Project</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="../style.css">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script src="carousel.js" defer></script>
-    <script src="theme-toggle.js" defer></script>
+    <script src="../javascript/carousel.js" defer></script>
+    <script src="../javascript/theme-toggle.js" defer></script>
+
+    
 </head>
 
 <body class="home-page">
 <nav class="sidebar" aria-label="Main navigation">
     <div class="sidebar-brand">
     <a class="brand" href="index.html">
-        <img class="brand-logo" src="./images/FI.png" alt="FirstImpress Lab logo">
+        <img class="brand-logo" src="../images/FI.png" alt="FirstImpress Lab logo">
         <span>FirstImpress Lab</span>
     </a>
     </div>
 
     <div class="sidebar-box sidebar-links">
-        <a href="index.html" class="nav-link">Home</a>
-        <a href="worksheet.html" class="nav-link">Documentation</a>
-        <a href="iterations.html" class="nav-link">Iterations</a>
-        <a href="technical.html" class="nav-link active">Technical</a>
+    <a href="../index.html" class="nav-link">Home</a>
+    <a href="worksheet.html" class="nav-link">Documentation</a>
+    <a href="iterations.html" class="nav-link">Iterations</a>
+    <a href="technical.html" class="nav-link active">Technical</a>
     </div>
 
     <div class="sidebar-box theme-box">
@@ -73,7 +75,7 @@
                     <div class="uml-track">
                     <article class="uml-slide is-active">
                         <div class="uml-left">
-                        <img src="images/ComponentDiagram.png" alt="ComponentDiagram UML">
+                        <img src="../images/ComponentDiagram.png" alt="ComponentDiagram UML">
                         </div>
                         <div class="uml-right">
                         <h3>Unity-Based Conversational System Architecture</h3>
@@ -103,7 +105,7 @@
 
                     <article class="uml-slide">
                         <div class="uml-left">
-                        <img src="images/Sequence1.png" alt="UI Tutorial UML">
+                        <img src="../images/Sequence1.png" alt="UI Tutorial UML">
                         </div>
                         <div class="uml-right">
                         <h3>Dialogue-Oriented Interview Turn Management</h3>
@@ -132,7 +134,7 @@
 
                     <article class="uml-slide">
                         <div class="uml-left">
-                        <img src="images/Sequence2.png" alt="Dialogue Oriented UML">
+                        <img src="../images/Sequence2.png" alt="Dialogue Oriented UML">
                         </div>
                         <div class="uml-right">
                         <h3>Dialogue-Oriented Interview Turn Management</h3>
@@ -161,7 +163,7 @@
 
                     <article class="uml-slide">
                         <div class="uml-left">
-                        <img src="images/Sequency3.png" alt="STT to LLM UML">
+                        <img src="../images/Sequency3.png" alt="STT to LLM UML">
                         </div>
                         <div class="uml-right">
                         <h3>End-to-End Streaming Speech Interaction Pipeline</h3>
@@ -184,6 +186,49 @@
                             Audio is streamed as PCM chunks and played back immediately, overlapping synthesis with playback.
                             After completion, post-processing steps such as memory updates and subtitle finalisation are performed.
                         </p>
+                        </div>
+                    </article>
+
+                    <article class="uml-slide">
+                        <div class="uml-left">
+                        <img src="../images/SumDiagram.png" alt="STT to LLM UML">
+                        </div>
+                        <div class="uml-right">
+                        <h3>Unity-Based Conversational System Architecture</h3>
+                        <p>
+                            This component diagram illustrates the end-to-end architecture of the Unity-based, fully local conversational system. User speech is captured via Unity’s Microphone API and processed continuously by a Whisper-based speech-to-text pipeline, which segments audio into overlapping chunks and produces incremental transcriptions. A Whisper Manager abstracts the speech recognition backend, allowing runtime selection between a native Whisper.cpp plugin and an optional operating-system-level dictation service. Once transcribed, user input is forwarded to the Dialogue Manager, which acts as the central orchestration layer responsible for turn-taking, interview phase control, NPC role assignment, and safety constraints.
+                        </p>
+                        <p>
+                            Dialogue generation is handled through an abstracted language model interface that supports both an embedded llama.cpp backend for low-latency local inference and an optional Ollama-based HTTP backend, without impacting higher-level dialogue logic. Each NPC maintains its own chat instance, prompt context, memory, and metadata, enabling coherent multi-party interaction. Generated responses are passed to the TTS subsystem, where Piper synthesizes speech locally via a dedicated handler that supports streaming playback. The resulting audio is rendered through Unity’s audio output while non-verbal behaviour—such as gaze, posture, and gesture timing—is coordinated in parallel, producing a real-time, privacy-preserving conversational loop entirely executed on-device
+                        </p>
+                        </div>
+                    </article>
+
+                    <article class="uml-slide">
+                        <div class="uml-left">
+                        <img src="../images/Simon diagram.drawio(1).png" alt="STT to LLM UML">
+                        </div>
+                        <div class="uml-right">
+                        <h3>Layered Speech-to-Speech Interaction Overview</h3>
+                        <p>
+                        This diagram presents a high-level overview of the system’s layered speech interaction pipeline. User speech is captured
+                        by the microphone and transcribed by a local Whisper-based STT module, producing a text transcript that enters the
+                        Dialogue Manager.
+                        </p>
+
+                        <p>
+                        The Dialogue Manager coordinates turn-taking, interview phase progression, and NPC role selection, routing the input to
+                        the appropriate agent. Dialogue generation is handled by a local LLM backend, which streams tokens containing both
+                        spoken content and behavioural metadata.
+                        </p>
+
+                        <p>
+                        Generated output is split between a metadata parser for animation and gaze control, and a sentence buffer that feeds
+                        Piper TTS for streamed speech synthesis. The resulting audio and synchronized non-verbal behaviour are rendered in
+                        Unity, completing a fully local, real-time conversational loop.
+                        </p>
+
+
                         </div>
                     </article>
                     </div>
@@ -349,6 +394,27 @@
             </p>
             </section>
         </div>
+
+        <footer>
+            <div class="footer-title">Finds on:</div>
+
+            <div class="footer-links" aria-label="External links">
+                <a class="footer-item" href="https://github.com/gulfurs/P7_Project" target="_blank" rel="noopener">
+                <div class="footer-icon" aria-hidden="true">
+                    <img class="gh-dark" src="../FooterLogos/github-mark-white.png" alt="">
+                    <img class="gh-light" src="../FooterLogos/github-mark.png" alt="">
+                </div>
+                <div class="footer-label">GitHub</div>
+                </a>
+
+                <a class="footer-item" href="https://huggingface.co/MEDSOE" target="_blank" rel="noopener">
+                <div class="footer-icon" aria-hidden="true">
+                    <img src="../FooterLogos/huggingface-2.svg" alt="">
+                </div>
+                <div class="footer-label">HuggingFace</div>
+                </a>
+            </div>
+        </footer>
     </div>
 </body>
 </html>

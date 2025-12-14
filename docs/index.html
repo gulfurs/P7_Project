@@ -9,6 +9,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <script src=javascript/theme-toggle.js defer></script>
 </head>
 <body class="home-page">
 
@@ -29,10 +31,11 @@
 
     <div class="sidebar-box sidebar-links">
         <a href="index.html" class="nav-link active">Home</a>
-        <a href="worksheet.html" class="nav-link">Documentation</a>
-        <a href="iterations.html" class="nav-link">Iterations</a>
-        <a href="technical.html" class="nav-link">Technical</a>
+        <a href="Pages/worksheet.html" class="nav-link">Documentation</a>
+        <a href="Pages/iterations.html" class="nav-link">Iterations</a>
+        <a href="Pages/technical.html" class="nav-link">Technical</a>
     </div>
+
 
     <div class="sidebar-box theme-box">
         <div class="theme-label">Change mode</div>
@@ -228,13 +231,26 @@
         </div>
 
         <footer>
-            <p>View on 
-                <a href="https://github.com/gulfurs/P7_Project">GitHub</a>  
-                <a href="https://huggingface.co/MEDSOE">HuggingFace</a>
-                <a href="#">itch.io</a>
-            </p>
-</footer>
+            <div class="footer-title">Finds on:</div>
+
+            <div class="footer-links" aria-label="External links">
+                <a class="footer-item" href="https://github.com/gulfurs/P7_Project" target="_blank" rel="noopener">
+                <div class="footer-icon" aria-hidden="true">
+                    <img class="gh-dark" src="FooterLogos/github-mark-white.png" alt="">
+                    <img class="gh-light" src="FooterLogos/github-mark.png" alt="">
+                </div>
+                <div class="footer-label">GitHub</div>
+                </a>
+
+                <a class="footer-item" href="https://huggingface.co/MEDSOE" target="_blank" rel="noopener">
+                <div class="footer-icon" aria-hidden="true">
+                    <img src="FooterLogos/huggingface-2.svg" alt="">
+                </div>
+                <div class="footer-label">HuggingFace</div>
+                </a>
+            </div>
+        </footer>
+
     </div>
-    <script src="theme-toggle.js" defer></script>
 </body>
 </html>

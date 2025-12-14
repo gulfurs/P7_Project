@@ -863,3 +863,78 @@ footer a:hover {
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 10px;
+}
+
+.footer-title{
+  margin-top: 6px;
+  margin-bottom: 12px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.footer-links{
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 18px;
+}
+
+.footer-item{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+}
+
+.footer-icon{
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.footer-item:hover .footer-icon{
+  transform: translateY(-1px);
+  border-color: var(--accent);
+}
+
+.footer-icon img{
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+  display: block;
+}
+
+.footer-label{
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+
+/* GitHub icon swap – never show both */
+.footer-icon .gh-dark,
+.footer-icon .gh-light {
+  display: none !important;
+}
+
+/* default theme (dark) */
+.footer-icon .gh-dark {
+  display: block !important;
+}
+
+/* light theme */
+html.theme-light .footer-icon .gh-dark {
+  display: none !important;
+}
+html.theme-light .footer-icon .gh-light {
+  display: block !important;
+}
+
+
