@@ -1,38 +1,64 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>P7 Project - Worksheet</title>
-    <link rel="stylesheet" href="style.css">
-
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>P7 Project - Worksheet</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <script src="theme-toggle.js" defer></script>
 </head>
+
 <body>
-    <!-- Vertical Navbar -->
-    <nav class="sidebar">
+    <nav class="sidebar" aria-label="Main navigation">
+    <div class="sidebar-brand">
+        <a class="brand" href="index.html">FirstImpress Lab</a>
+    </div>
+
+
+    <div class="sidebar-box sidebar-links">
         <a href="index.html" class="nav-link">Home</a>
         <a href="worksheet.html" class="nav-link active">Documentation</a>
         <a href="iterations.html" class="nav-link">Iterations</a>
-        <a href="technical.html" class="nav-link">Technical Details</a>
-    </nav>
+        <a href="technical.html" class="nav-link">Technical</a>
+    </div>
 
+    <div class="sidebar-box theme-box">
+        <div class="theme-label">Change mode</div>
+        <button id="theme-toggle" class="theme-toggle" aria-pressed="false">
+            Light
+        </button>
+    </div>
+    </nav>
+    
     <div class="main">
-        <!-- Header -->
         <header>
             <h1>Project Documentation</h1>
             <p class="tagline">Development process and timeline</p>
         </header>
 
-        <!-- Worksheet Content -->
+                 <aside class="toc" aria-label="Table of contents">
+            <h3>Contents</h3>
+            <nav>
+                <ul>
+                    <li><a href="#GanttChart">Gantt Chart & Timeline</a></li>
+                    <li><a href="#Kanban">Kanban Board</a>
+                    <li><a href="#Sprint">Sprint Planning & Backlog</a></li>
+                    <li><a href="#Meeting">Meeting Notes</a></li>
+                    <li><a href="#Challenges & Solutions">Challenge & Solutions</a></li>
+                    <li><a href="#Testing">Testing & Results</a></li>
+                    <li><a href="#PersonalReflection">Personal Reflection</a></li>
+                </ul>
+            </nav>
+        </aside>
+
         <div class="worksheet-content">
             
-            <!-- Development Process -->
             <section class="section-block">
                 <div class="section-text">
-                    <h3>Gantt Chart & Timeline</h3>
+                    <h3 id="GanttChart">Gantt Chart & Timeline</h3>
                     <p>Project timeline showing all phases, milestones, and deliverables throughout the development cycle.</p>
                     <p>Key phases include planning, prototyping, development, testing, and refinement.</p>
                 </div>
@@ -43,7 +69,7 @@
 
             <section class="section-block reverse">
                 <div class="section-text">
-                    <h3>Kanban Board</h3>
+                    <h3 id="Kanban">Kanban Board</h3>
                     <p>Task management and workflow visualization using a Kanban board.</p>
                     <p>Tracks tasks through "To Do", "In Progress", and "Done" stages to ensure steady progress.</p>
                 </div>
@@ -53,22 +79,21 @@
             </section>
 
             <div class="full-width-section">
-                <h3>Sprint Planning & Backlog</h3>
+                <h3 id="Sprint">Sprint Planning & Backlog</h3>
                 <p><strong>Sprint 1:</strong> [Dates] - [Main goals and tasks]</p>
                 <p><strong>Sprint 2:</strong> [Dates] - [Main goals and tasks]</p>
                 <p><strong>Sprint 3:</strong> [Dates] - [Main goals and tasks]</p>
             </div>
 
             <div class="full-width-section">
-                <h3>Meeting Notes</h3>
+                <h3 id="Meeting">Meeting Notes</h3>
                 <p><strong>Meeting 1 - [Date]:</strong> Discussed [topic], Decided [decision], Changed [what changed]</p>
                 <p><strong>Meeting 2 - [Date]:</strong> Discussed [topic], Decided [decision], Changed [what changed]</p>
                 <p><strong>Meeting 3 - [Date]:</strong> Discussed [topic], Decided [decision], Changed [what changed]</p>
             </div>
 
-            <!-- Challenges & Solutions -->
             <div class="full-width-section">
-                <h3>Challenges & Solutions</h3>
+                <h3 id="Challenges">Challenges & Solutions</h3>
                 
                 <p style="margin-top: 20px;"><strong>Challenge 1:</strong> [Problem title]</p>
                 <ul>
@@ -95,10 +120,9 @@
                 </ul>
             </div>
 
-            <!-- Testing & Evaluation -->
             <section class="section-block reverse">
                 <div class="section-text">
-                    <h3>Testing & Results</h3>
+                    <h3 id="Testing">Testing & Results</h3>
                     <p><strong>Test Examples:</strong></p>
                     <ul>
                         <li>Test 1: [Feature] - ✓ Pass</li>
@@ -113,9 +137,8 @@
                 </div>
             </section>
 
-            <!-- Reflection -->
             <div class="full-width-section">
-                <h3>Personal Reflection</h3>
+                <h3 id="PersonalReflection">Personal Reflection</h3>
                 <p><strong>What I Learned:</strong> [Technical and soft skills gained]</p>
                 <p><strong>Skills Improved:</strong> [Specific improvements in programming, Unity, problem-solving]</p>
                 <p><strong>What I'd Do Differently:</strong> [Honest assessment of what could be better]</p>
@@ -124,7 +147,6 @@
 
         </div>
 
-        <!-- Footer -->
         <footer>
             <p>View on 
                 <a href="#">GitHub</a>  

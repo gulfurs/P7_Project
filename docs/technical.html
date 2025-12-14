@@ -9,39 +9,196 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="carousel.js" defer></script>
+    <script src="theme-toggle.js" defer></script>
 </head>
-<body>
-    <!-- Vertical Navbar -->
-    <nav class="sidebar">
-        <a href="index.html" class="nav-link">Home</a>
+
+<body class="home-page">
+<nav class="sidebar" aria-label="Main navigation">
+    <div class="sidebar-brand">
+        <a class="brand" href="index.html">FirstImpress Lab</a>
+    </div>
+
+    <div class="sidebar-box sidebar-links">
+        <a href="index.html" class="nav-link active">Home</a>
         <a href="worksheet.html" class="nav-link">Documentation</a>
         <a href="iterations.html" class="nav-link">Iterations</a>
-        <a href="technical.html" class="nav-link active">Technical Details</a>
+        <a href="technical.html" class="nav-link">Technical</a>
+    </div>
+
+    <div class="sidebar-box theme-box">
+        <div class="theme-label">Change mode</div>
+        <button id="theme-toggle" class="theme-toggle" aria-pressed="false">
+            Light
+        </button>
+    </div>
     </nav>
 
     <div class="main">
-        <!-- Header -->
         <header>
             <h1>Technical Details</h1>
             <p class="tagline">In-depth System Analysis</p>
         </header>
 
-        <!-- Content Grid -->
+               <aside class="toc" aria-label="Table of contents">
+            <h3>Contents</h3>
+            <nav>
+                <ul>
+                    <li><a href="#UML">UML Diagrams</a></li>
+                    <li><a href="#Key">Key Features Summary</a></li>
+                    <li><a href="#Whisper">Whisper Architecture</a></li>
+                        <ul>
+                            <li><a href="#Encode">Encode Architecture</a></li>
+                            <li><a href="#Decode">Decode Architecture</a></li>
+                        </ul>
+                    <li><a href="#Integration">Integration into Unity</a></li>
+                    <li><a href="#Local">Local LLaMA integration in Unity</a></li>
+                    <li><a href="#Ollama-based">Ollama-based integration in Unity</a></li>
+                    <li><a href="#Piper">Piper TTS</a></li>
+                </ul>
+            </nav>
+        </aside>
+
         <div class="content">
             <section class="description" style="width: 100%;">
-                <h2>System Architecture</h2>
-                <div class="media-container" style="margin-bottom: 20px;">
-                    <img src="./assets/diagrams/system-diagram.png" alt="System Diagram">
+                <h2 id="UML">UML Diagrams</h2>
+
+                <div class="uml-carousel" aria-label="UML diagram carousel">
+                <button class="uml-btn prev" type="button" aria-label="Previous diagram">‹</button>
+
+                <div class="uml-viewport">
+                    <div class="uml-track">
+                    <article class="uml-slide is-active">
+                        <div class="uml-left">
+                        <img src="images/ComponentDiagram.png" alt="ComponentDiagram UML">
+                        </div>
+                        <div class="uml-right">
+                        <h3>Unity-Based Conversational System Architecture</h3>
+                        <p>
+                            This component diagram provides a structural overview of the conversational system as implemented
+                            within the Unity runtime. User input enters through the microphone and is processed by the Whisper-based
+                            speech recognition module, which converts raw audio into text transcripts.
+                        </p>
+                        <p>
+                            Recognised speech is forwarded to the Dialogue Manager, which serves as the central orchestration layer.
+                            It governs turn-taking, interview phase control, safety constraints, and routing of input to the
+                            appropriate NPC role, such as HR or Technical interviewer.
+                        </p>
+                        <p>
+                            The Dialogue Manager interfaces with an abstracted language model backend. This abstraction supports
+                            both a locally embedded <code>llama.cpp</code> plugin for low-latency inference and an Ollama-based HTTP
+                            client as a fallback, without impacting higher-level system logic.
+                        </p>
+                        <p>
+                            Non-verbal behaviour is coordinated by a dedicated controller responsible for gaze, gestures, and
+                            posture. Final output is rendered through the output layer, combining Piper TTS for speech synthesis
+                            with Unity’s animation system, resulting in a fully local, real-time conversational architecture.
+                        </p>
+
+                        </div>
+                    </article>
+
+                    <article class="uml-slide">
+                        <div class="uml-left">
+                        <img src="images/Sequence1.png" alt="UI Tutorial UML">
+                        </div>
+                        <div class="uml-right">
+                        <h3>Dialogue-Oriented Interview Turn Management</h3>
+                        <p>
+                            This diagram illustrates the internal dialogue orchestration during the interview, with an emphasis
+                            on explicit turn-taking and streaming output. Once the interview has started, the Dialogue Manager
+                            coordinates interaction between the user, NPC chat instance, language model client, and TTS handler.
+                        </p>
+                        <p>
+                            When the NPC is granted a turn, the Dialogue Manager verifies turn availability and requests an utterance
+                            from the NPC chat instance. This request encapsulates the current conversational context and triggers
+                            the language model to begin generating a response.
+                        </p>
+                        <p>
+                            Language model output is streamed token-by-token rather than produced as a single blocking response.
+                            Each token is immediately forwarded to the UI for subtitle updates while simultaneously being buffered
+                            for text-to-speech synthesis, enabling early feedback to the user.
+                        </p>
+                        <p>
+                            After generation completes, the conversation memory is updated to preserve contextual continuity.
+                            The buffered audio is then played back through the TTS handler. Once playback finishes, the Dialogue
+                            Manager explicitly ends the NPC’s turn and returns control to the user.
+                        </p>
+                        </div>
+                    </article>
+
+                    <article class="uml-slide">
+                        <div class="uml-left">
+                        <img src="images/Sequence2.png" alt="Dialogue Oriented UML">
+                        </div>
+                        <div class="uml-right">
+                        <h3>Dialogue-Oriented Interview Turn Management</h3>
+                        <p>
+                            This diagram illustrates the internal dialogue orchestration during the interview, with an emphasis
+                            on explicit turn-taking and streaming output. Once the interview has started, the Dialogue Manager
+                            coordinates interaction between the user, NPC chat instance, language model client, and TTS handler.
+                        </p>
+                        <p>
+                            When the NPC is granted a turn, the Dialogue Manager verifies turn availability and requests an utterance
+                            from the NPC chat instance. This request encapsulates the current conversational context and triggers
+                            the language model to begin generating a response.
+                        </p>
+                        <p>
+                            Language model output is streamed token-by-token rather than produced as a single blocking response.
+                            Each token is immediately forwarded to the UI for subtitle updates while simultaneously being buffered
+                            for text-to-speech synthesis, enabling early feedback to the user.
+                        </p>
+                        <p>
+                            After generation completes, the conversation memory is updated to preserve contextual continuity.
+                            The buffered audio is then played back through the TTS handler. Once playback finishes, the Dialogue
+                            Manager explicitly ends the NPC’s turn and returns control to the user.
+                        </p>
+                        </div>
+                    </article>
+
+                    <article class="uml-slide">
+                        <div class="uml-left">
+                        <img src="images/Sequency3.png" alt="STT to LLM UML">
+                        </div>
+                        <div class="uml-right">
+                        <h3>End-to-End Streaming Speech Interaction Pipeline</h3>
+                        <p>
+                            This sequence diagram depicts the full speech-based interaction pipeline, from live audio capture to
+                            synthesized speech output. User speech is continuously captured by the microphone and processed as
+                            short audio frames that are forwarded to the speech-to-text (STT) service.
+                        </p>
+                        <p>
+                            The STT component incrementally processes incoming audio and emits a final transcript once speech
+                            concludes. This transcript is displayed in the UI and passed to the Dialogue Manager as user input.
+                        </p>
+                        <p>
+                            The Dialogue Manager initiates a streaming request to the language model client. Generated tokens are
+                            returned incrementally, allowing the UI to update subtitles in real time while text is appended to an
+                            internal buffer.
+                        </p>
+                        <p>
+                            In parallel, the TTS service begins synthesizing speech as soon as sufficient text is available.
+                            Audio is streamed as PCM chunks and played back immediately, overlapping synthesis with playback.
+                            After completion, post-processing steps such as memory updates and subtitle finalisation are performed.
+                        </p>
+                        </div>
+                    </article>
+                    </div>
                 </div>
-                <p><strong>Architecture:</strong> [Brief system architecture overview]</p>
-                <p><strong>Key Features:</strong></p>
+
+                <button class="uml-btn next" type="button" aria-label="Next diagram">›</button>
+
+                <div class="uml-dots" role="tablist" aria-label="Choose diagram"></div>
+                </div>
+
+                <h2 id="Key"><strong>Key Features:</strong></h2>
                 <ul>
                     <li>Adaptive gameplay mechanics</li>
                     <li>Performance optimization</li>
                     <li>Modular design</li>
                 </ul>
 
-                <h2>Whisper Architecture</h2>
+                <h2 id="Whisper">Whisper Architecture</h2>
                 <p>
                     For automatic speech recognition (ASR), we employ Whisper, an encoder–decoder Transformer model
                     trained on roughly 680k hours of weakly labelled web audio [whisperWeakSupervision].
@@ -51,7 +208,7 @@
                     frames using a 25 ms window (400 samples) with a 10 ms hop (160 samples), and for each frame, a short-time 
                     Fourier transform (STFT) is computed.
                 </p>
-                <h3>Encode Architecture</h3>
+                <h3 id="Encode">Encode Architecture</h3>
                 <p>
                     The encoder operates on the normalised log-Mel spectrogram and converts it into a sequence of higher-level audio features.
                     First, a small 1D convolutional “stem” maps the 80 Mel-frequency channels into the model’s hidden size <i>d</i><sub>model</sub> 
@@ -61,7 +218,7 @@
                     And uses a stride greater than one to reduce the number of
                     time steps, so later layers can look over longer spans of speech at once.
                 </p>
-                <h3>Decode Architecture</h3>
+                <h3 id="Decode">Decode Architecture</h3>
                 <p>
                     Text generation is performed by an autoregressive Transformer decoder that conditions on the encoder output. Whisper uses a GPT-style 
                     byte-pair encoding (BPE) [whisperWeakSupervision] vocabulary, so both ordinary text and control symbols (for task, language and timestamps).
@@ -69,7 +226,7 @@
                     and a language token (e.g. <code>&lt;|en|&gt;</code> or <code>&lt;|da|&gt;</code>).
                 </p>
 
-                <h2>Integration into Unity</h2>
+                <h2 id="Integration">Integration into Unity</h2>
                 <p>
                     To run Whisper locally we rely on <code>whisper.cpp</code>, [whispercpp] a C++ reimplementation of the original model that exposes a low-level C API for
                     loading models and performing inference on raw PCM audio. Unity cannot directly consume this C++ code from managed C#, so we compile a thin native 
@@ -90,7 +247,7 @@
                     if no new speech has been recognized for a configurable interval, or if a hard maximum duration per user turn is exceeded, the current transcript is finalized.
                 </p>
 
-                <h2>Local LLaMA integration in Unity</h2>
+                <h2 id="Local">Local LLaMA integration in Unity</h2>
                 <p>
                     The cognitive core of the interviewer agents is implemented using a locally hosted large language model executed via <code>llama.cpp</code>. [llamacpp] 
                     In line with the fully on-device design of the system, the model is not accessed through an external HTTP endpoint, but compiled as a native plugin 
@@ -121,7 +278,7 @@
                     parameters, ensuring that the temporal unfolding of speech, gaze and gesture remains aligned with the incremental output of the language model.
                 </p>
 
-                <h2>Ollama-based integration in Unity</h2>
+                <h2 id="Ollama-based">Ollama-based integration in Unity</h2>
                 <p>
                     Although the main interview system links the language model directly into Unity via <code>llama.cpp</code>, the same class of instruction-tuned models can also be 
                     deployed through Ollama as an alternative backend. In this configuration the LLM runs as a separate local server process, and Unity communicates with it
@@ -142,7 +299,7 @@
                     local Ollama server without changing the overall interaction architecture.
                 </p>
 
-            <h2>Piper TTS</h2>
+            <h2 id="Piper">Piper TTS</h2>
             <p>
                 The final stage of the pipeline converts the language model’s textual output into audible speech. In keeping with the overall design goal of fully local 
                 processing, we use Piper, a neural text-to-speech system developed by the Rhasspy/Open Home Foundation community. [piperTTS] Piper provides ONNX-based 

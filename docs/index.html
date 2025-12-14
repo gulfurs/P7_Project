@@ -10,27 +10,91 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
-<body>
-    <!-- Vertical Navbar -->
-    <nav class="sidebar">
-        <a href="index.html" class="nav-link active">Home</a>
-        <a href="worksheet.html" class="nav-link">Documentation</a>
-        <a href="iterations.html" class="nav-link">Iterations</a>
-        <a href="technical.html" class="nav-link">Technical Details</a>
-    </nav>
+<body class="home-page">
 
     <div class="main">
-        <!-- Header -->
         <header>
-            <h1>P7 Project</h1>
+            <h1 id="home">FirstImpress Lab </h1>
             <p class="tagline">Adaptive Unity Game System</p>
         </header>
 
-        <!-- Content Grid -->
+
+    <nav class="sidebar" aria-label="Main navigation">
+    <div class="sidebar-brand">
+        <a class="brand" href="index.html">FirstImpress Lab</a>
+    </div>
+
+    <div class="sidebar-box sidebar-links">
+        <a href="index.html" class="nav-link active">Home</a>
+        <a href="worksheet.html" class="nav-link">Documentation</a>
+        <a href="iterations.html" class="nav-link">Iterations</a>
+        <a href="technical.html" class="nav-link">Technical</a>
+    </div>
+
+    <div class="sidebar-box theme-box">
+        <div class="theme-label">Change mode</div>
+        <button id="theme-toggle" class="theme-toggle" aria-pressed="false">
+            Light
+        </button>
+    </div>
+</nav>
+
+
+
+        <aside class="toc" aria-label="Table of contents">
+            <h3>Contents</h3>
+            <nav>
+                <ul>
+                    <li><a href="#introduction">Introduction</a></li>
+                    <ul>
+                        <li><a href="#why">Why this project was made</a></li>
+                        <li><a href="#about">About the project</a></li> 
+                    </ul>
+                    <li><a href="#problem">Problem Definition</a>
+                        <ul>
+                            <li><a href="#context">Context</a></li>
+                            <li><a href="#original">Original Problem</a></li>
+                            <li><a href="#research">Research Problem</a></li>
+                        </ul>
+                    </li>
+                    <li><a href="#requirements">Requirements</a></li>
+                    <li><a href="#system">System Design</a></li>
+                    <li><a href="#results">Results</a></li>
+                    <li><a href="#team">Team</a></li>
+                </ul>
+
+                <ul>
+                        <li><a href="#Gameplay">Gameplay Demo</a></li>
+                        <li><a href="#GamplayVideo">Demo Video</a></li>
+                </ul>
+            </nav>
+        </aside>
+
         <div class="content">
-            <!-- Left: Description -->
             <section class="description">
-                <h2>Introduction</h2>
+                <h2 id="introduction">Introduction </h2>
+                <p>Authors of this project:</p>
+                    <ul class="author-list">
+                        <li>Simon Ingemann Axelsen</li>
+                        <li>Niels Christian Malte Felix Iuel</li>
+                        <li>Sabrina Khan</li>
+                        <li>Mubarik Jamall Muuse</li>
+                        <li>Halipha Ndikumana</li>
+                    </ul>
+
+                <h3 id="why">Why this project was made</h3>
+                <p>
+                    This project was created as part of the first semester of the Master’s programme in Medialogy at
+                    Aalborg University. The semester focuses on adaptive media systems that use data-driven and
+                    artificial intelligence–based techniques to dynamically respond to user interaction.
+                </p>
+
+                <p>
+                    In this context, the project was developed to explore how real-time, locally deployed AI systems
+                    can support adaptive, multi-party conversational interaction while adhering to scientific
+                    methodology and academic reporting requirements.
+                </p>
+                <h3 id="about">About the project</h3>
                 <p>
                 Can a real-time, locally deployed LLM-driven multi-agent system support natural 
                 conversation in a multi-party interview setting while remaining attentive under 
@@ -51,86 +115,88 @@
                 verbal
                 </p>
 
-                <h3>Problem Definition</h3>
+                <h3 id="problem">Problem Definition</h3>
+                <h4 id="context">Context</h4>
                 <p>
-<strong>Context:</strong><br>
-Despite recent advances in large language models, embodied conversational agents 
-still struggle to support natural multi-party dialogue. In interview-like settings, 
-AI avatars often fail to coordinate turn-taking, attention, and non-verbal behavior, 
-resulting in conversations that feel delayed, socially unaware, or unnatural.
-</p>
+                Despite recent advances in large language models, embodied conversational agents 
+                still struggle to support natural multi-party dialogue. In interview-like settings, 
+                AI avatars often fail to coordinate turn-taking, attention, and non-verbal behavior, 
+                resulting in conversations that feel delayed, socially unaware, or unnatural.
+                </p>
 
-<p>
-<strong>Original Problem:</strong><br>
-How to design a locally deployable speech-based interaction pipeline 
-(STT → LLM → TTS) that supports multi-agent conversation without breaking 
-conversational grounding due to latency, turn collisions, or misaligned 
-non-verbal behavior.
-</p>
+                <h4 id="original">Original Problem</h4>
+                <p>
+                How to design a locally deployable speech-based interaction pipeline 
+                (STT → LLM → TTS) that supports multi-agent conversation without breaking 
+                conversational grounding due to latency, turn collisions, or misaligned 
+                non-verbal behavior.
+                </p>
 
-<p>
-<strong>Research Problem:</strong><br>
-Can a real-time, local LLM-driven multi-agent interview system be perceived as 
-attentive and natural in a multi-party setting while operating under latency 
-constraints that exceed ideal human turn-taking thresholds?
-</p>
+                <h4 id="research">Research Problem</h4>
+                <p>
+                Can a real-time, local LLM-driven multi-agent interview system be perceived as 
+                attentive and natural in a multi-party setting while operating under latency 
+                constraints that exceed ideal human turn-taking thresholds?
+                </p>
 
-<p>
-<strong>Requirements:</strong>
-</p>
-    <ul>
-        <li>End-to-end system latency must remain within accepted HCI limits 
-            (&lt; 10 seconds) and be temporally predictable</li>
-        <li>Agents must coordinate turn-taking without overlapping speech</li>
-        <li>Verbal responses must be synchronized with non-verbal cues 
-            (gaze, gesture, attention)</li>
-        <li>All components must run locally to ensure timing control and user privacy</li>
-    </ul>
+                <h4 id="requirements">Requirements</h4>
+                <ul>
+                    <li>End-to-end system latency must remain within accepted HCI limits (&lt; 10 seconds) and be temporally predictable</li>
+                    <li>Agents must coordinate turn-taking without overlapping speech</li>
+                    <li>Verbal responses must be synchronized with non-verbal cues (gaze, gesture, attention)</li>
+                    <li>All components must run locally to ensure timing control and user privacy</li>
+                </ul>
 
-    <p>
-    <strong>Constraints:</strong>
-    </p>
-    <ul>
-        <li>Speech recognition accuracy vs. responsiveness trade-offs (STT)</li>
-        <li>LLM generation latency and limited social reasoning in multi-party dialogue</li>
-        <li>Text-to-speech expressiveness versus real-time synthesis latency</li>
-        <li>Computational limits of running all models on-device</li>
-    </ul>
+                <p>
+                <strong>Constraints:</strong>
+                </p>
+                <ul>
+                    <li>Speech recognition accuracy vs. responsiveness trade-offs (STT)</li>
+                    <li>LLM generation latency and limited social reasoning in multi-party dialogue</li>
+                    <li>Text-to-speech expressiveness versus real-time synthesis latency</li>
+                    <li>Computational limits of running all models on-device</li>
+                </ul>
 
-                <h3>Results</h3>
+                <h3 id="system">System Design</h3>
+                <p><strong>Key Features:</strong></p>
+                <ul>
+                    <li>Adaptive gameplay mechanics</li>
+                    <li>Performance optimization</li>
+                    <li>Modular design</li>
+                </ul>
+
+                <h3 id="results">Results</h3>
                 <p><strong>Final Outcome:</strong> [Summary of what was achieved]</p>
                 <p><strong>Performance:</strong> [Key metrics]</p>
-
-                <h3>Team</h3>
-                <ul>
-                <li>Simon Ingemann Axelsen</li>
-                <li>Niels Christian Malte Felix Iuel</li>
-                <li>Sabrina Khan</li>
-                <li>Mubarik Jamall Muuse</li>
-                <li>Halipha Ndukimana</li>
-
-                </ul>    
             </section>
 
-            <!-- Right: Gallery -->
-            <section class="gallery">
-                <h2>Gameplay Demo</h2>
+            <section class="gallery gallery--stacked">
+                <h2 id="Gameplay">Gameplay Demo</h2>
                 <div class="gallery-grid">
-                    <div class="gif-item">
-                        <img src="./images/gameplay-1.gif" alt="Gameplay 1">
-                    </div>
-                    <div class="gif-item">
-                        <img src="./images/gameplay-2.gif" alt="Gameplay 2">
-                    </div>
+                    <figure class="gif-item">
+                        <img src="./images/Tutorial 1 done.gif" alt="Tutorial completed">
+                        <figcaption>Shows the tutorial, and then starts the interview</figcaption>
+                    </figure>
+                    <figure class="gif-item">
+                        <img src="./images/Medvin talking.gif" alt="Tutorial completed">
+                        <figcaption>Shows the male interviewer Medvin talking</figcaption>
+                    </figure>
+                    <figure class="gif-item">
+                        <img src="./images/medina talking.gif" alt="Tutorial completed">
+                        <figcaption>Shows the female interviewer Medina talking</figcaption>
+                    </figure>
+                    <figure class="gif-item">
+                        <img src="./images/Recording interview.gif" alt="Tutorial completed">
+                        <figcaption>User speaking to the system and therefore the bots</figcaption>
+                    </figure>
                 </div>
             </section>
         </div>
 
-        <!-- Demo Video -->
         <div class="full-width-section" style="margin-bottom: 40px;">
-            <h3>Demo Video</h3>
+            <h3 id="GamplayVideo">Demo Video</h3>
             <div class="media-container">
-                <video controls>
+                <video controls="">
                     <source src="./assets/videos/demo.mp4" type="video/mp4">
                     Your browser does not support the video tag.
                 </video>
@@ -138,14 +204,14 @@ constraints that exceed ideal human turn-taking thresholds?
             <p style="margin-top: 15px; color: #555;">Full demonstration of the adaptive system in action.</p>
         </div>
 
-        <!-- Footer -->
         <footer>
             <p>View on 
                 <a href="https://github.com/gulfurs/P7_Project">GitHub</a>  
                 <a href="https://huggingface.co/MEDSOE">HuggingFace</a>
                 <a href="#">itch.io</a>
             </p>
-        </footer>
+</footer>
     </div>
+    <script src="theme-toggle.js" defer></script>
 </body>
 </html>

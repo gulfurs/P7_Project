@@ -9,25 +9,55 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <script src="theme-toggle.js" defer></script>
+</body>
+</html>
+
 </head>
 <body>
-    <nav class="sidebar">
+    <nav class="sidebar" aria-label="Main navigation">
+    <div class="sidebar-brand">
+        <a class="brand" href="index.html">FirstImpress Lab</a>
+    </div>
+
+    <div class="sidebar-box sidebar-links">
         <a href="index.html" class="nav-link">Home</a>
         <a href="worksheet.html" class="nav-link">Documentation</a>
         <a href="iterations.html" class="nav-link active">Iterations</a>
-        <a href="technical.html" class="nav-link">Technical Details</a>
-    </nav>
+        <a href="technical.html" class="nav-link">Technical</a>
+    </div>
 
+    <div class="sidebar-box theme-box">
+        <div class="theme-label">Change mode</div>
+        <button id="theme-toggle" class="theme-toggle" aria-pressed="false">
+            Light
+        </button>
+    </div>
+    </nav>
+    
     <div class="main">
         <header>
             <h1>Iterations</h1>
             <p class="tagline">Evolution and improvement</p>
         </header>
 
+            <aside class="toc" aria-label="Table of contents">
+            <h3>Contents</h3>
+            <nav>
+                <ul>
+                    <li><a href="#IT1">Iteration 1 - First Version</a></li>
+                    <li><a href="#IT2">Iteration 2 - Improved Version</a></li>
+                    <li><a href="#IT3">Iteration 3 - Final Version</a></li>
+                    <li><a href="#Key">Key Improvements Summary</a></li>
+                </ul>
+            </nav>
+        </aside>
+
         <div class="worksheet-content">
             <section class="section-block">
                 <div class="section-text">
-                    <h3>Iteration 1 - First Version</h3>
+                    <h3 id="IT1">Iteration 1 - First Version</h3>
                     <p><strong>What it was:</strong> [Describe the first version]</p>
                     <p><strong>Features:</strong> [What worked in this version]</p>
                     <p><strong>Issues:</strong> [What needed improvement]</p>
@@ -39,7 +69,7 @@
 
             <section class="section-block reverse">
                 <div class="section-text">
-                    <h3>Iteration 2 - Improved Version</h3>
+                    <h3 id="IT2">Iteration 2 - Improved Version</h3>
                     <p><strong>What changed:</strong> [Describe improvements made]</p>
                     <p><strong>Why:</strong> [Reason for changes]</p>
                     <p><strong>Result:</strong> [Impact of improvements]</p>
@@ -51,7 +81,7 @@
 
             <section class="section-block">
                 <div class="section-text">
-                    <h3>Iteration 3 - Final Version</h3>
+                    <h3 id="IT3">Iteration 3 - Final Version</h3>
                     <p><strong>What changed:</strong> [Final improvements]</p>
                     <p><strong>Why:</strong> [Reason for changes]</p>
                     <p><strong>Result:</strong> [Final outcome]</p>
@@ -64,7 +94,7 @@
 
 
             <div class="full-width-section">
-                <h3>Key Improvements Summary</h3>
+                <h3 id="Key">Key Improvements Summary</h3>
                 <ul>
                     <li><strong>Visual Quality:</strong> [What improved visually]</li>
                     <li><strong>Performance:</strong> [Performance improvements]</li>
