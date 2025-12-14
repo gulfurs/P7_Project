@@ -166,8 +166,28 @@
                 </ul>
 
                 <h3 id="results">Results</h3>
-                <p><strong>Final Outcome:</strong> [Summary of what was achieved]</p>
-                <p><strong>Performance:</strong> [Key metrics]</p>
+                <p><strong>Final Outcome:</strong>
+                The final outcome of this project is a fully functional, locally deployed, real-time multi-agent interview simulation system. The system features two embodied AI interviewers that conduct a structured job interview with a human participant using spoken dialogue, coordinated turn-taking, and synchronized non-verbal behavior.
+
+                The interviewers are capable of listening to user speech, generating context-aware follow-up questions, and responding with natural-sounding synthesized speech. Throughout the interaction, the agents use gaze direction, facial animation, and attention cues to signal turn ownership and engagement, creating a coherent multi-party conversational experience.
+
+                The system was implemented entirely on-device using a Unity-based architecture, integrating automatic speech recognition, a large language model, and text-to-speech synthesis without reliance on cloud services. This design ensures predictable timing, reduced latency variability, and improved privacy. The completed system was evaluated with real users in a simulated interview setting to assess both technical performance and user perception.
+                </p>
+                <p><strong>Performance:</strong>
+                <ul>
+                <li><strong>Median end-to-end system latency:</strong> 2,392 ms (2.39 s)</li>
+                <li><strong>Mean system latency:</strong> 2,548 ms &plusmn; 1,125 ms</li>
+            </ul>
+
+            <h3>Latency breakdown (Median)</h3>
+            <ul>
+                <li><strong>Speech-to-Text (STT window):</strong> 3,948 ms</li>
+                <li><strong>LLM Time-To-First-Token (TTFT):</strong> 550 ms</li>
+                <li><strong>TTS Time-To-First-Byte (TTFB):</strong> 1,841 ms</li>
+                <li><strong>End-to-end (excluding STT):</strong> 6,024 ms</li>
+                <li><strong>TTS playback duration (median):</strong> 3,534 ms</li>
+            </ul>
+                </p>
             </section>
 
             <section class="gallery gallery--stacked">
@@ -197,7 +217,7 @@
             <h3 id="GamplayVideo">Demo Video</h3>
             <div class="media-container">
                 <video controls="">
-                    <source src="./assets/videos/demo.mp4" type="video/mp4">
+                    <source src="./videos/test_h264.mp4" type="video/mp4">
                     Your browser does not support the video tag.
                 </video>
             </div>
