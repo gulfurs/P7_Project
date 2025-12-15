@@ -10,42 +10,11 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-    <script src=javascript/theme-toggle.js defer></script>
+    <script src="javascript/theme-toggle.js" defer></script>
 </head>
+
 <body class="home-page">
-
-    <div class="main">
-        <header>
-            <h1 id="home">FirstImpress Lab </h1>
-            <p class="tagline">Adaptive Unity Game System</p>
-        </header>
-
-
-    <nav class="sidebar" aria-label="Main navigation">
-    <div class="sidebar-brand">
-    <a class="brand" href="../index.html">
-        <img class="brand-logo" src="./images/FI.png" alt="FirstImpress Lab logo">
-        <span>FirstImpress Lab</span>
-    </a>
-    </div>
-
-    <div class="sidebar-box sidebar-links">
-        <a href="index.html" class="nav-link active">Home</a>
-        <a href="Pages/worksheet.html" class="nav-link">Documentation</a>
-        <a href="Pages/iterations.html" class="nav-link">Iterations</a>
-        <a href="Pages/technical.html" class="nav-link">Technical</a>
-    </div>
-
-
-    <div class="sidebar-box theme-box">
-        <div class="theme-label">Change mode</div>
-        <button id="theme-toggle" class="theme-toggle" aria-pressed="false">
-            Light
-        </button>
-    </div>
-</nav>
-
-
+    <div class="layout">
 
         <aside class="toc" aria-label="Table of contents">
             <h3>Contents</h3>
@@ -70,187 +39,227 @@
                 </ul>
 
                 <ul>
-                        <li><a href="#Gameplay">Showcase Demo</a></li>
-                        <li><a href="#GamplayVideo">Demo Video</a></li>
+                    <li><a href="#Gameplay">Showcase Demo</a></li>
+                    <li><a href="#GamplayVideo">Demo Video</a></li>
                 </ul>
             </nav>
         </aside>
 
-        <div class="content">
-            <section class="description">
-                <h2 id="introduction">Introduction </h2>
-                <p>Authors of this project:</p>
-                    <ul class="author-list">
-                        <li>Simon Ingemann Axelsen</li>
-                        <li>Niels Christian Malte Felix Iuel</li>
-                        <li>Sabrina Khan</li>
-                        <li>Mubarik Jamall Muuse</li>
-                        <li>Halipha Ndikumana</li>
+        <div class="main">
+            <header>
+                <h1 id="home">FirstImpress Lab </h1>
+                <p class="tagline">Adaptive Unity Game System</p>
+            </header>
+
+            <div class="content">
+                <section class="description">
+                    <h2 id="introduction">Introduction </h2>
+                    <p>Authors of this project:</p>
+                        <ul class="author-list">
+                            <li>Simon Ingemann Axelsen</li>
+                            <li>Niels Christian Malte Felix Iuel</li>
+                            <li>Sabrina Khan</li>
+                            <li>Mubarik Jamall Muuse</li>
+                            <li>Halipha Ndikumana</li>
+                        </ul>
+
+                    <h3 id="why">Why this project was made</h3>
+                    <p>
+                        This project was created as part of the first semester of the Master’s programme in Medialogy at
+                        Aalborg University. The semester focuses on adaptive media systems that use data-driven and
+                        artificial intelligence–based techniques to dynamically respond to user interaction.
+                    </p>
+
+                    <p>
+                        In this context, the project was developed to explore how real-time, locally deployed AI systems
+                        can support adaptive, multi-party conversational interaction while adhering to scientific
+                        methodology and academic reporting requirements.
+                    </p>
+                    <h3 id="about">About the project</h3>
+                    <p>
+                    Can a real-time, locally deployed LLM-driven multi-agent system support natural 
+                    conversation in a multi-party interview setting while remaining attentive under 
+                    realistic latency constraints?
+                    </p>
+
+                    <p>
+                    This project explores a Unity-based interview simulation where multiple AI agents 
+                    generate adaptive dialogue and synchronized non-verbal behaviors such as gaze, 
+                    gesture timing, and attention signaling. All components—including speech recognition, 
+                    language generation, and speech synthesis—run locally to ensure predictable timing 
+                    and user privacy.
+                    </p>
+
+                    <p>
+                    The goal is to address common challenges in conversational AI, including response 
+                    latency and limited social awareness in multi-party dialogue, by tightly coupling 
+                    verbal
+                    </p>
+
+                    <h3 id="problem">Problem Definition</h3>
+                    <h4 id="context">Context</h4>
+                    <p>
+                    Despite recent advances in large language models, embodied conversational agents 
+                    still struggle to support natural multi-party dialogue. In interview-like settings, 
+                    AI avatars often fail to coordinate turn-taking, attention, and non-verbal behavior, 
+                    resulting in conversations that feel delayed, socially unaware, or unnatural.
+                    </p>
+
+                    <h4 id="original">Original Problem</h4>
+                    <p>
+                    How to design a locally deployable speech-based interaction pipeline 
+                    (STT → LLM → TTS) that supports multi-agent conversation without breaking 
+                    conversational grounding due to latency, turn collisions, or misaligned 
+                    non-verbal behavior.
+                    </p>
+
+                    <h4 id="research">Research Problem</h4>
+                    <p>
+                    Can a real-time, local LLM-driven multi-agent interview system be perceived as 
+                    attentive and natural in a multi-party setting while operating under latency 
+                    constraints that exceed ideal human turn-taking thresholds?
+                    </p>
+
+                    <h4 id="requirements">Requirements</h4>
+                    <ul>
+                        <li>End-to-end system latency must remain within accepted HCI limits (&lt; 10 seconds) and be temporally predictable</li>
+                        <li>Agents must coordinate turn-taking without overlapping speech</li>
+                        <li>Verbal responses must be synchronized with non-verbal cues (gaze, gesture, attention)</li>
+                        <li>All components must run locally to ensure timing control and user privacy</li>
                     </ul>
 
-                <h3 id="why">Why this project was made</h3>
-                <p>
-                    This project was created as part of the first semester of the Master’s programme in Medialogy at
-                    Aalborg University. The semester focuses on adaptive media systems that use data-driven and
-                    artificial intelligence–based techniques to dynamically respond to user interaction.
-                </p>
+                    <p>
+                    <strong>Constraints:</strong>
+                    </p>
+                    <ul>
+                        <li>Speech recognition accuracy vs. responsiveness trade-offs (STT)</li>
+                        <li>LLM generation latency and limited social reasoning in multi-party dialogue</li>
+                        <li>Text-to-speech expressiveness versus real-time synthesis latency</li>
+                        <li>Computational limits of running all models on-device</li>
+                    </ul>
 
-                <p>
-                    In this context, the project was developed to explore how real-time, locally deployed AI systems
-                    can support adaptive, multi-party conversational interaction while adhering to scientific
-                    methodology and academic reporting requirements.
-                </p>
-                <h3 id="about">About the project</h3>
-                <p>
-                Can a real-time, locally deployed LLM-driven multi-agent system support natural 
-                conversation in a multi-party interview setting while remaining attentive under 
-                realistic latency constraints?
-                </p>
+                    <h3 id="system">System Design</h3>
+                    <p><strong>Key Features:</strong></p>
+                    <ul>
+                        <li>Adaptive gameplay mechanics</li>
+                        <li>Performance optimization</li>
+                        <li>Modular design</li>
+                    </ul>
 
-                <p>
-                This project explores a Unity-based interview simulation where multiple AI agents 
-                generate adaptive dialogue and synchronized non-verbal behaviors such as gaze, 
-                gesture timing, and attention signaling. All components—including speech recognition, 
-                language generation, and speech synthesis—run locally to ensure predictable timing 
-                and user privacy.
-                </p>
+                    <h3 id="results">Results</h3>
+                    <p><strong>Final Outcome:</strong>
+                    The final outcome of this project is a fully functional, locally deployed, real-time multi-agent interview simulation system. The system features two embodied AI interviewers that conduct a structured job interview with a human participant using spoken dialogue, coordinated turn-taking, and synchronized non-verbal behavior.
 
-                <p>
-                The goal is to address common challenges in conversational AI, including response 
-                latency and limited social awareness in multi-party dialogue, by tightly coupling 
-                verbal
-                </p>
+                    The interviewers are capable of listening to user speech, generating context-aware follow-up questions, and responding with natural-sounding synthesized speech. Throughout the interaction, the agents use gaze direction, facial animation, and attention cues to signal turn ownership and engagement, creating a coherent multi-party conversational experience.
 
-                <h3 id="problem">Problem Definition</h3>
-                <h4 id="context">Context</h4>
-                <p>
-                Despite recent advances in large language models, embodied conversational agents 
-                still struggle to support natural multi-party dialogue. In interview-like settings, 
-                AI avatars often fail to coordinate turn-taking, attention, and non-verbal behavior, 
-                resulting in conversations that feel delayed, socially unaware, or unnatural.
-                </p>
+                    The system was implemented entirely on-device using a Unity-based architecture, integrating automatic speech recognition, a large language model, and text-to-speech synthesis without reliance on cloud services. This design ensures predictable timing, reduced latency variability, and improved privacy. The completed system was evaluated with real users in a simulated interview setting to assess both technical performance and user perception.
+                    </p>
+                    <p><strong>Performance:</strong>
+                    <ul>
+                    <li><strong>Median end-to-end system latency:</strong> 2,392 ms (2.39 s)</li>
+                    <li><strong>Mean system latency:</strong> 2,548 ms &plusmn; 1,125 ms</li>
+                    </ul>
 
-                <h4 id="original">Original Problem</h4>
-                <p>
-                How to design a locally deployable speech-based interaction pipeline 
-                (STT → LLM → TTS) that supports multi-agent conversation without breaking 
-                conversational grounding due to latency, turn collisions, or misaligned 
-                non-verbal behavior.
-                </p>
+                    <h3>Latency breakdown (Median)</h3>
+                    <ul>
+                        <li><strong>Speech-to-Text (STT window):</strong> 3,948 ms</li>
+                        <li><strong>LLM Time-To-First-Token (TTFT):</strong> 550 ms</li>
+                        <li><strong>TTS Time-To-First-Byte (TTFB):</strong> 1,841 ms</li>
+                        <li><strong>End-to-end (excluding STT):</strong> 6,024 ms</li>
+                        <li><strong>TTS playback duration (median):</strong> 3,534 ms</li>
+                    </ul>
+                    </p>
+                </section>
 
-                <h4 id="research">Research Problem</h4>
-                <p>
-                Can a real-time, local LLM-driven multi-agent interview system be perceived as 
-                attentive and natural in a multi-party setting while operating under latency 
-                constraints that exceed ideal human turn-taking thresholds?
-                </p>
+                <section class="gallery gallery--stacked">
+                    <h2 id="Gameplay">Showcase Demo</h2>
+                    <div class="gallery-grid">
+                        <figure class="gif-item">
+                            <img src="./images/Tutorial 1 done.gif" alt="Tutorial completed">
+                            <figcaption>Shows the tutorial, and then starts the interview</figcaption>
+                        </figure>
+                        <figure class="gif-item">
+                            <img src="./images/Medvin talking.gif" alt="Tutorial completed">
+                            <figcaption>Shows the male interviewer Medvin talking</figcaption>
+                        </figure>
+                        <figure class="gif-item">
+                            <img src="./images/medina talking.gif" alt="Tutorial completed">
+                            <figcaption>Shows the female interviewer Medina talking</figcaption>
+                        </figure>
+                        <figure class="gif-item">
+                            <img src="./images/Recording interview.gif" alt="Tutorial completed">
+                            <figcaption>User speaking to the system and therefore the bots</figcaption>
+                        </figure>
+                    </div>
+                </section>
+            </div>
 
-                <h4 id="requirements">Requirements</h4>
-                <ul>
-                    <li>End-to-end system latency must remain within accepted HCI limits (&lt; 10 seconds) and be temporally predictable</li>
-                    <li>Agents must coordinate turn-taking without overlapping speech</li>
-                    <li>Verbal responses must be synchronized with non-verbal cues (gaze, gesture, attention)</li>
-                    <li>All components must run locally to ensure timing control and user privacy</li>
-                </ul>
-
-                <p>
-                <strong>Constraints:</strong>
-                </p>
-                <ul>
-                    <li>Speech recognition accuracy vs. responsiveness trade-offs (STT)</li>
-                    <li>LLM generation latency and limited social reasoning in multi-party dialogue</li>
-                    <li>Text-to-speech expressiveness versus real-time synthesis latency</li>
-                    <li>Computational limits of running all models on-device</li>
-                </ul>
-
-                <h3 id="system">System Design</h3>
-                <p><strong>Key Features:</strong></p>
-                <ul>
-                    <li>Adaptive gameplay mechanics</li>
-                    <li>Performance optimization</li>
-                    <li>Modular design</li>
-                </ul>
-
-                <h3 id="results">Results</h3>
-                <p><strong>Final Outcome:</strong>
-                The final outcome of this project is a fully functional, locally deployed, real-time multi-agent interview simulation system. The system features two embodied AI interviewers that conduct a structured job interview with a human participant using spoken dialogue, coordinated turn-taking, and synchronized non-verbal behavior.
-
-                The interviewers are capable of listening to user speech, generating context-aware follow-up questions, and responding with natural-sounding synthesized speech. Throughout the interaction, the agents use gaze direction, facial animation, and attention cues to signal turn ownership and engagement, creating a coherent multi-party conversational experience.
-
-                The system was implemented entirely on-device using a Unity-based architecture, integrating automatic speech recognition, a large language model, and text-to-speech synthesis without reliance on cloud services. This design ensures predictable timing, reduced latency variability, and improved privacy. The completed system was evaluated with real users in a simulated interview setting to assess both technical performance and user perception.
-                </p>
-                <p><strong>Performance:</strong>
-                <ul>
-                <li><strong>Median end-to-end system latency:</strong> 2,392 ms (2.39 s)</li>
-                <li><strong>Mean system latency:</strong> 2,548 ms &plusmn; 1,125 ms</li>
-            </ul>
-
-            <h3>Latency breakdown (Median)</h3>
-            <ul>
-                <li><strong>Speech-to-Text (STT window):</strong> 3,948 ms</li>
-                <li><strong>LLM Time-To-First-Token (TTFT):</strong> 550 ms</li>
-                <li><strong>TTS Time-To-First-Byte (TTFB):</strong> 1,841 ms</li>
-                <li><strong>End-to-end (excluding STT):</strong> 6,024 ms</li>
-                <li><strong>TTS playback duration (median):</strong> 3,534 ms</li>
-            </ul>
-                </p>
-            </section>
-
-            <section class="gallery gallery--stacked">
-                <h2 id="Gameplay">Showcase Demo</h2>
-                <div class="gallery-grid">
-                    <figure class="gif-item">
-                        <img src="./images/Tutorial 1 done.gif" alt="Tutorial completed">
-                        <figcaption>Shows the tutorial, and then starts the interview</figcaption>
-                    </figure>
-                    <figure class="gif-item">
-                        <img src="./images/Medvin talking.gif" alt="Tutorial completed">
-                        <figcaption>Shows the male interviewer Medvin talking</figcaption>
-                    </figure>
-                    <figure class="gif-item">
-                        <img src="./images/medina talking.gif" alt="Tutorial completed">
-                        <figcaption>Shows the female interviewer Medina talking</figcaption>
-                    </figure>
-                    <figure class="gif-item">
-                        <img src="./images/Recording interview.gif" alt="Tutorial completed">
-                        <figcaption>User speaking to the system and therefore the bots</figcaption>
-                    </figure>
+            <div class="full-width-section" style="margin-bottom: 40px;">
+                <h3 id="GamplayVideo">Demo Video</h3>
+                <div class="media-container">
+                    <iframe
+                        width="560"
+                        height="315"
+                        src="https://www.youtube.com/embed/Ai3r5WX7uGE?si=eexaWy7HDlOdr1kd"
+                        title="YouTube video player"
+                        frameborder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        referrerpolicy="strict-origin-when-cross-origin"
+                        allowfullscreen>
+                    </iframe>
                 </div>
-            </section>
+                <p style="margin-top: 15px; color: #555;">
+                    Full demonstration of the adaptive system in action.
+                </p>
+            </div>
+
+
+            <footer>
+                <div class="footer-title">Finds on:</div>
+
+                <div class="footer-links" aria-label="External links">
+                    <a class="footer-item" href="https://github.com/gulfurs/P7_Project" target="_blank" rel="noopener">
+                    <div class="footer-icon" aria-hidden="true">
+                        <img class="gh-dark" src="FooterLogos/github-mark-white.png" alt="">
+                        <img class="gh-light" src="FooterLogos/github-mark.png" alt="">
+                    </div>
+                    <div class="footer-label">GitHub</div>
+                    </a>
+
+                    <a class="footer-item" href="https://huggingface.co/MEDSOE" target="_blank" rel="noopener">
+                    <div class="footer-icon" aria-hidden="true">
+                        <img src="FooterLogos/huggingface-2.svg" alt="">
+                    </div>
+                    <div class="footer-label">HuggingFace</div>
+                    </a>
+                </div>
+            </footer>
         </div>
 
-        <div class="full-width-section" style="margin-bottom: 40px;">
-            <h3 id="GamplayVideo">Demo Video</h3>
-            <div class="media-container">
-                <video controls="">
-                    <source src="./videos/test_h264.mp4" type="video/mp4">
-                    Your browser does not support the video tag.
-                </video>
-            </div>
-            <p style="margin-top: 15px; color: #555;">Full demonstration of the adaptive system in action.</p>
-        </div>
-
-        <footer>
-            <div class="footer-title">Finds on:</div>
-
-            <div class="footer-links" aria-label="External links">
-                <a class="footer-item" href="https://github.com/gulfurs/P7_Project" target="_blank" rel="noopener">
-                <div class="footer-icon" aria-hidden="true">
-                    <img class="gh-dark" src="FooterLogos/github-mark-white.png" alt="">
-                    <img class="gh-light" src="FooterLogos/github-mark.png" alt="">
-                </div>
-                <div class="footer-label">GitHub</div>
-                </a>
-
-                <a class="footer-item" href="https://huggingface.co/MEDSOE" target="_blank" rel="noopener">
-                <div class="footer-icon" aria-hidden="true">
-                    <img src="FooterLogos/huggingface-2.svg" alt="">
-                </div>
-                <div class="footer-label">HuggingFace</div>
+        <nav class="sidebar" aria-label="Main navigation">
+            <div class="sidebar-brand">
+                <a class="brand" href="../index.html">
+                    <img class="brand-logo" src="./images/FI.png" alt="FirstImpress Lab logo">
+                    <span>FirstImpress Lab</span>
                 </a>
             </div>
-        </footer>
+
+            <div class="sidebar-box sidebar-links">
+                <a href="index.html" class="nav-link active">Home</a>
+                <a href="Pages/worksheet.html" class="nav-link">Documentation</a>
+                <a href="Pages/iterations.html" class="nav-link">Iterations</a>
+                <a href="Pages/technical.html" class="nav-link">Technical</a>
+            </div>
+
+            <div class="sidebar-box theme-box">
+                <div class="theme-label">Change mode</div>
+                <button id="theme-toggle" class="theme-toggle" aria-pressed="false">
+                    Light
+                </button>
+            </div>
+        </nav>
 
     </div>
+
 </body>
 </html>
