@@ -10,43 +10,14 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-    <script src="../javascript/theme-toggle.js"></script>
-</body>
-</html>
-
+    <script src="../javascript/theme-toggle.js" defer></script>
 </head>
-<body>
-    <nav class="sidebar" aria-label="Main navigation">
-    <div class="sidebar-brand">
-    <a class="brand" href="../index.html">
-        <img class="brand-logo" src="../images/FI.png" alt="FirstImpress Lab logo">
-        <span>FirstImpress Lab</span>
-    </a>
-    </div>
 
-    <div class="sidebar-box sidebar-links">
-    <a href="../index.html" class="nav-link">Home</a>
-    <a href="worksheet.html" class="nav-link">Documentation</a>
-    <a href="iterations.html" class="nav-link active">Iterations</a>
-    <a href="technical.html" class="nav-link">Technical</a>
-    </div>
+<body class="home-page">
 
+    <div class="layout">
 
-    <div class="sidebar-box theme-box">
-        <div class="theme-label">Change mode</div>
-        <button id="theme-toggle" class="theme-toggle" aria-pressed="false">
-            Light
-        </button>
-    </div>
-    </nav>
-    
-    <div class="main">
-        <header>
-            <h1>Iterations</h1>
-            <p class="tagline">Evolution and improvement</p>
-        </header>
-
-            <aside class="toc" aria-label="Table of contents">
+        <aside class="toc" aria-label="Table of contents">
             <h3>Contents</h3>
             <nav>
                 <ul>
@@ -56,65 +27,97 @@
                 </ul>
             </nav>
         </aside>
+        
+        <div class="main">
+            <header>
+                <h1>Iterations</h1>
+                <p class="tagline">Evolution and improvement</p>
+            </header>
 
-        <div class="worksheet-content">
-            <section class="section-block">
-                <div class="section-text">
-                    <h3 id="IT1">Iteration 1 - First Version</h3>
-                    <p><strong>What it was:</strong> Text-based GUI</p>
-                    <p><strong>Features:</strong> LLM & TTS</p>
-                    <p><strong>Issues:</strong> Missing avartars, not simulating real life scenario</p>
-                </div>
-                <div class="media-container">
-                    <img src="../images/First-setup.png" alt="First Version Screenshot">
-                </div>
-            </section>
+            <div class="worksheet-content">
+                <section class="section-block">
+                    <div class="section-text">
+                        <h3 id="IT1">Iteration 1 - First Version</h3>
+                        <p><strong>What it was:</strong> Text-based GUI</p>
+                        <p><strong>Features:</strong> LLM &amp; TTS</p>
+                        <p><strong>Issues:</strong> Missing avartars, not simulating real life scenario</p>
+                    </div>
+                    <div class="media-container">
+                        <img src="../images/First-setup.png" alt="First Version Screenshot">
+                    </div>
+                </section>
 
-            <section class="section-block reverse">
-                <div class="section-text">
-                    <h3 id="IT2">Iteration 2 - Improved Version</h3>
-                    <p><strong>What changed:</strong> Added Avartars</p>
-                    <p><strong>Why:</strong> The Avartars was connected to the LLM to simulate a real life scenario</p>
-                    <p><strong>Result:</strong> More life like</p>
-                </div>
-                <div class="media-container">
-                    <img src="../images/Setup_with_char.png" alt="Second Version Screenshot">
-                </div>
-            </section>
+                <section class="section-block reverse">
+                    <div class="section-text">
+                        <h3 id="IT2">Iteration 2 - Improved Version</h3>
+                        <p><strong>What changed:</strong> Added Avartars</p>
+                        <p><strong>Why:</strong> The Avartars was connected to the LLM to simulate a real life scenario</p>
+                        <p><strong>Result:</strong> More life like</p>
+                    </div>
+                    <div class="media-container">
+                        <img src="../images/Setup_with_char.png" alt="Second Version Screenshot">
+                    </div>
+                </section>
 
-            <section class="section-block">
-                <div class="section-text">
-                    <h3 id="IT3">Iteration 3 - Final Version</h3>
-                    <p><strong>What changed:</strong> Added office and Whisper</p>
-                    <p><strong>Why:</strong> To more mimic real life scenario, and being able to talk instead of text-based</p>
-                    <p><strong>Result:</strong> Simulated Job interview</p>
+                <section class="section-block">
+                    <div class="section-text">
+                        <h3 id="IT3">Iteration 3 - Final Version</h3>
+                        <p><strong>What changed:</strong> Added office and Whisper</p>
+                        <p><strong>Why:</strong> To more mimic real life scenario, and being able to talk instead of text-based</p>
+                        <p><strong>Result:</strong> Simulated Job interview</p>
+                    </div>
+                    <div class="media-container">
+                        <img src="../images/Originallayout.png" alt="Final Version Screenshot">
+                    </div>
+                </section>
+            </div>
+
+            <footer>
+                <div class="footer-title">Finds on:</div>
+
+                <div class="footer-links" aria-label="External links">
+                    <a class="footer-item" href="https://github.com/gulfurs/P7_Project" target="_blank" rel="noopener">
+                        <div class="footer-icon" aria-hidden="true">
+                            <img class="gh-dark" src="../FooterLogos/github-mark-white.png" alt="">
+                            <img class="gh-light" src="../FooterLogos/github-mark.png" alt="">
+                        </div>
+                        <div class="footer-label">GitHub</div>
+                    </a>
+
+                    <a class="footer-item" href="https://huggingface.co/MEDSOE" target="_blank" rel="noopener">
+                        <div class="footer-icon" aria-hidden="true">
+                            <img src="../FooterLogos/huggingface-2.svg" alt="">
+                        </div>
+                        <div class="footer-label">HuggingFace</div>
+                    </a>
                 </div>
-                <div class="media-container">
-                    <img src="../images/Originallayout.png" alt="Final Version Screenshot">
-                </div>
-            </section>
+            </footer>
         </div>
 
-        <footer>
-            <div class="footer-title">Finds on:</div>
-
-            <div class="footer-links" aria-label="External links">
-                <a class="footer-item" href="https://github.com/gulfurs/P7_Project" target="_blank" rel="noopener">
-                <div class="footer-icon" aria-hidden="true">
-                    <img class="gh-dark" src="../FooterLogos/github-mark-white.png" alt="">
-                    <img class="gh-light" src="../FooterLogos/github-mark.png" alt="">
-                </div>
-                <div class="footer-label">GitHub</div>
-                </a>
-
-                <a class="footer-item" href="https://huggingface.co/MEDSOE" target="_blank" rel="noopener">
-                <div class="footer-icon" aria-hidden="true">
-                    <img src="../FooterLogos/huggingface-2.svg" alt="">
-                </div>
-                <div class="footer-label">HuggingFace</div>
+        <nav class="sidebar" aria-label="Main navigation">
+            <div class="sidebar-brand">
+                <a class="brand" href="../index.html">
+                    <img class="brand-logo" src="../images/FI.png" alt="FirstImpress Lab logo">
+                    <span>FirstImpress Lab</span>
                 </a>
             </div>
-        </footer>
+
+            <div class="sidebar-box sidebar-links">
+                <a href="../index.html" class="nav-link">Home</a>
+                <a href="worksheet.html" class="nav-link">Documentation</a>
+                <a href="iterations.html" class="nav-link active">Iterations</a>
+                <a href="technical.html" class="nav-link">Technical</a>
+            </div>
+
+            <div class="sidebar-box theme-box">
+                <div class="theme-label">Change mode</div>
+                <button id="theme-toggle" class="theme-toggle" aria-pressed="false">
+                    Light
+                </button>
+            </div>
+        </nav>
+
     </div>
+
 </body>
 </html>
